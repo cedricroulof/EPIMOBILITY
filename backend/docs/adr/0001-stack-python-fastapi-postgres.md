@@ -1,6 +1,6 @@
 # ADR-0001 — Stack backend : Python 3.12, FastAPI, PostgreSQL
 
-Statut : proposé (choix de l'auteur, à confirmer en équipe) · Date : 2026-10-26
+Statut : accepté (confirmé le 2026-11-02) · Date : 2026-10-26
 
 ## Contexte
 Stack libre, à justifier. Le sujet exige : une référence d'API OpenAPI, un moteur de règles et d'affectation testé et mesuré, une installation en une commande, un nouveau contributeur opérationnel en 15 minutes, un déploiement continu sur offre gratuite. Groupe de 3 : un backend, un web, un mobile.

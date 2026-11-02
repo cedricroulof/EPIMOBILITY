@@ -2,9 +2,9 @@
 
 > Périmètre : tout ce qui est derrière l'API. Le site web et l'application mobile sont deux clients de cette API.
 > Le moteur d'affectation est **implémenté, testé et mesuré** (`engine/`, `tests/`, `bench/`, `docs/benchmark-results.md`) ;
-> l'API, la base et le déploiement sont spécifiés pour être construits tels quels.
+> l'API existe en preuve de concept (`app/`, voir `testing.md`) ; la base et le déploiement sont spécifiés pour être construits tels quels.
 > Ce document a été relu par un développeur extérieur ; ses remarques sont intégrées, et les questions qui restent
-> ouvertes sont listées en §14. Le choix de la stack est celui de l'auteur (ADR-0001) : il se discute en équipe.
+> ouvertes sont listées en §14. Stack retenue : Python, FastAPI, PostgreSQL (ADR-0001, accepté).
 
 ## 1. Ce que le sujet impose au backend, et la réponse retenue
 
@@ -56,7 +56,7 @@ Pas de file de tâches, pas de cache externe, pas de second service : un run 1 0
 | Conteneurs / CI / CD | Docker Compose, GitHub Actions, Fly.io (API, machine qui ne s'endort pas) + Neon (Postgres), offres gratuites | Déploiement à chaque merge sur `main` ; Render gratuit écarté : mise en veille ≈ 50 s, fatale en démo |
 | Push mobile | FCM HTTP v1, envoi par sujet | Un appel pour toute la cohorte, iOS et Android |
 
-Le moteur n'utilise que la bibliothèque standard : si l'équipe préfère TypeScript (web et mobile en TS), il se porte, et le protocole de benchmark plus les empreintes de référence (`test_golden_hashes_pin_engine_behaviour`) servent d'oracle au portage.
+Le moteur n'utilise que la bibliothèque standard : il se teste et se mesure sans base ni serveur.
 
 ## 4. Modèle de données
 
@@ -313,11 +313,10 @@ backend/
 
 ## 14. Décisions prises par l'auteur, et questions qui restent au propriétaire
 
-**Tranchées ici (à contester si besoin)** : échelle d'anglais commune par bandes CEFR (ADR-0007) ; tirage au sort seedé comme dernier départage ; `name` hors empreinte de version ; `POST /admin/configs` idempotent ; exactement 5 vœux ; dernier run publié fait foi ; publication d'un run Boston refusée ; régénération de cohorte interdite après un run ; SPA servie par l'API ; Fly.io plutôt que Render.
+**Tranchées ici (à contester si besoin)** : stack Python/FastAPI/PostgreSQL (ADR-0001, confirmée le 2026-11-02) ; échelle d'anglais commune par bandes CEFR (ADR-0007) ; tirage au sort seedé comme dernier départage ; `name` hors empreinte de version ; `POST /admin/configs` idempotent ; exactement 5 vœux ; dernier run publié fait foi ; publication d'un run Boston refusée ; régénération de cohorte interdite après un run ; SPA servie par l'API ; Fly.io plutôt que Render.
 
 **À trancher par l'équipe, car la réponse change ce qui est construit** :
-1. Stack : Python/FastAPI (ADR-0001) ou TypeScript si le web et le mobile sont en TS.
-2. Un dépôt unique (web + backend + mobile, ce que le PDF suggère) ou trois : change CI, Compose, README, GitHub Projects.
-3. Plateforme mobile : iOS ou Android. iOS ⇒ pas de push sur simulateur, démo de la notification sur appareil réel ou via le repli.
-4. Sort des non-affectés : statut final, second tour sur places restantes, ou affectation forcée ?
-5. Départage : le tirage au sort seedé convient-il à l'école fictive, ou préfère-t-elle un critère déterministe affiché (ancienneté, etc.) ?
+1. Un dépôt unique (web + backend + mobile, ce que le PDF suggère) ou trois : change CI, Compose, README, GitHub Projects.
+2. Plateforme mobile : iOS ou Android. iOS ⇒ pas de push sur simulateur, démo de la notification sur appareil réel ou via le repli.
+3. Sort des non-affectés : statut final, second tour sur places restantes, ou affectation forcée ?
+4. Départage : le tirage au sort seedé convient-il à l'école fictive, ou préfère-t-elle un critère déterministe affiché (ancienneté, etc.) ?
