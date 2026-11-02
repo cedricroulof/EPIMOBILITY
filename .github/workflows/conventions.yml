@@ -1,0 +1,50 @@
+name: Conventions
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  convention:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install pre-commit
+      # Même hook et même version qu'en local (.pre-commit-config.yaml) : une seule source de vérité.
+      - name: Check every commit of the PR, then the PR title (it becomes the squash commit on main)
+        env:
+          RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          check() { pre-commit run conventional-pre-commit --hook-stage commit-msg --commit-msg-filename "$1"; }
+          status=0
+          for sha in $(git rev-list --no-merges "$RANGE"); do
+            git log -1 --format=%B "$sha" > msg.txt
+            echo "::group::$(git log -1 --format='%h %s' "$sha")"
+            check msg.txt || status=1
+            echo "::endgroup::"
+          done
+          printf '%s\n' "$TITLE" > msg.txt
+          echo "PR title: $TITLE"
+          check msg.txt || status=1
+          exit $status
+
+  hooks:
+    name: Pre-commit hooks (lint, format, secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: pip install pre-commit
+      - run: pre-commit run --all-files --show-diff-on-failure

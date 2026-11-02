@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+# Données locales et secrets
+*.db
+.env
+# Éditeurs et OS
+.idea/
+.vscode/
+.DS_Store
