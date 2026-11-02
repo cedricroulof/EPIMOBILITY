@@ -1,0 +1,52 @@
+name: Backend
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  tests:
+    name: Unit + functional tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --frozen
+      - run: uv run pytest tests/unit tests/functional
+
+  e2e:
+    name: End-to-end (Docker image + PostgreSQL)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --frozen
+      # Construit l'image de production et démarre la plateforme comme un nouvel arrivant : une commande.
+      - run: docker compose up --build --detach --wait
+        working-directory: .
+      - run: uv run pytest tests/e2e -s
+        env:
+          E2E_BASE_URL: http://localhost:8000
+      - if: failure()
+        run: docker compose logs api
+        working-directory: .
+
+  bench:
+    name: Engine benchmark (68 checks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: uv run --frozen python bench/run.py --out benchmark-results.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results
+          path: backend/benchmark-results.md
