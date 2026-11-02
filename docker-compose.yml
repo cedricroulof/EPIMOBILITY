@@ -1,0 +1,30 @@
+# Plateforme complète en une commande : docker compose up --build
+# API sur http://localhost:8000/api, documentation OpenAPI sur http://localhost:8000/docs
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: epimobility
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-epimobility}
+      POSTGRES_DB: epimobility
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U epimobility"]
+      interval: 2s
+      retries: 30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://epimobility:${POSTGRES_PASSWORD:-epimobility}@db:5432/epimobility
+      APP_ENV: ${APP_ENV:-development}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-demo1234}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
