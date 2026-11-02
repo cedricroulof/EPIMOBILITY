@@ -1,1 +1,27 @@
+# env files (keep .env.example tracked)
 .env
+.env.*
+!.env.example
+
+# dependencies and build output across all packages
+node_modules/
+dist/
+build/
+coverage/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS and editor junk
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Docker local data (database volumes)
+pgdata/
