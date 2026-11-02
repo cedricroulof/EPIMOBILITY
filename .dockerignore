@@ -1,0 +1,10 @@
+# Contexte de build = racine du dépôt : n'envoyer que ce que les images utilisent
+**
+!pyproject.toml
+!uv.lock
+!.python-version
+!packages/engine/
+!packages/generator/
+!apps/api/app/
+**/__pycache__
+**/tests

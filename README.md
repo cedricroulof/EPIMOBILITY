@@ -1,7 +1,6 @@
 # EPIMOBILITY
 
-[![Backend](https://github.com/cedricroulof/EPIMOBILITY/actions/workflows/backend.yml/badge.svg)](https://github.com/cedricroulof/EPIMOBILITY/actions/workflows/backend.yml)
-[![Conventions](https://github.com/cedricroulof/EPIMOBILITY/actions/workflows/conventions.yml/badge.svg)](https://github.com/cedricroulof/EPIMOBILITY/actions/workflows/conventions.yml)
+[![CI](https://github.com/cedricroulof/EPIMOBILITY/actions/workflows/ci.yml/badge.svg)](https://github.com/cedricroulof/EPIMOBILITY/actions/workflows/ci.yml)
 
 EPIMOBILITY is an educational project with fictive partnership, neither the school or its affiliate are real.
 
@@ -15,7 +14,7 @@ et des règles configurables par l'administration.
 Prérequis : Docker.
 
 ```bash
-docker compose up --build
+docker compose up --build       # ou : pnpm dev
 ```
 
 L'API démarre sur <http://localhost:8000/api> avec un jeu de démo (100 universités, 1 000 étudiants générés,
@@ -28,31 +27,43 @@ seed 42). Documentation interactive de l'API : <http://localhost:8000/docs>.
 
 Valeurs par défaut surchargeables dans un fichier `.env` (voir `.env.example`).
 
-## Tests
+## Tests et lint
 
-Prérequis : [uv](https://docs.astral.sh/uv/).
+Prérequis : [uv](https://docs.astral.sh/uv/) et [pnpm](https://pnpm.io/).
 
 ```bash
-cd backend && uv run pytest     # unitaires, fonctionnels et end-to-end, ≈ 15 s
+pnpm test     # unitaires, fonctionnels et end-to-end, ≈ 15 s (ou : uv run pytest)
+pnpm lint     # hooks pre-commit sur tout le dépôt
+pnpm bench    # banc d'essai des algorithmes
 ```
 
-Stratégie et justification de chaque niveau : [`backend/docs/testing.md`](backend/docs/testing.md).
+Stratégie et justification de chaque niveau de test : [`docs/technical/testing.md`](docs/technical/testing.md).
 
 ## Arborescence
 
-| Dossier | Contenu |
-|---|---|
-| `backend/app/` | API FastAPI : authentification, catalogue, vœux, configurations, runs, publication, rejeu |
-| `backend/engine/` | moteur pur : règles JSON, Gale-Shapley, Boston, stabilité, explications, générateur |
-| `backend/tests/` | `unit/`, `functional/`, `e2e/` |
-| `backend/bench/` | banc d'essai des algorithmes |
-| `backend/docs/` | architecture, ADR, protocole et résultats du banc, stratégie de tests |
+```
+apps/
+  api/                  API REST Python (FastAPI) : auth, rôles, catalogue, vœux, runs, publication, rejeu
+packages/
+  engine/               moteur pur, sans I/O : rules/, algorithms/ (Gale-Shapley, Boston, stabilité), benchmark/
+  generator/            étudiants et universités fictifs reproductibles (seed), scénarios de tension
+docs/
+  technical/            architecture, modèle de données, API, comparatif des algorithmes, stratégie de tests
+  adr/                  une décision par fichier
+.github/                ci.yml, modèles d'issue et de pull request
+docker-compose.yml      base + API en une commande
+pyproject.toml, uv.lock environnement Python verrouillé ; package.json, pnpm-lock.yaml : scripts du dépôt
+```
+
+`apps/web`, `apps/mobile`, `packages/shared`, `data/` et `docs/user`, `docs/accessibility`, `docs/brand` arrivent
+avec leurs parties respectives.
 
 ## Documentation
 
-- [Architecture du backend](backend/docs/architecture.md) et [décisions (ADR)](backend/docs/adr/)
-- [Comparatif des algorithmes](backend/docs/benchmark-results.md)
-- [Contribuer : hooks, convention de commits, branches](CONTRIBUTING.md)
+- [Architecture](docs/technical/architecture.md) et [décisions (ADR)](docs/adr/)
+- [Comparatif des algorithmes](docs/technical/benchmark-results.md)
+- [Contribuer : hooks, convention de commits, branches, ajout d'un critère](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md) · [Code de conduite](CODE_OF_CONDUCT.md) · [Licence MIT](LICENSE)
 
 ## Usage de l'IA
 

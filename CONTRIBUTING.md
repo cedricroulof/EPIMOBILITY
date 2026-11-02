@@ -2,12 +2,13 @@
 
 ## Mise en place (une fois par clone)
 
-Prérequis : Git, Docker, [uv](https://docs.astral.sh/uv/) et [pre-commit](https://pre-commit.com/) (`uv tool install pre-commit`).
+Prérequis : Git, Docker, Node 20+ avec [pnpm](https://pnpm.io/), [uv](https://docs.astral.sh/uv/) et
+[pre-commit](https://pre-commit.com/) (`uv tool install pre-commit`).
 
 ```bash
 pre-commit install            # installe les hooks pre-commit ET commit-msg
-cd backend && uv sync         # dépendances verrouillées (uv.lock), Python 3.12 téléchargé si absent
-uv run pytest                 # tous les tests du backend
+uv sync                       # dépendances Python verrouillées (uv.lock), Python 3.12 téléchargé si absent
+pnpm test                     # tous les tests (ou : uv run pytest)
 ```
 
 ## Hooks
@@ -61,7 +62,7 @@ Exemples : `feat(api): add wishes endpoint`, `fix(engine): keep cutoff when capa
 (qui a fait quoi, de quelle nature), et le type de chaque commit détermine la prochaine version sémantique et le
 `CHANGELOG.md`, sans débat.
 
-**Où elle est vérifiée.** En local par le hook `commit-msg` ; en CI (`.github/workflows/conventions.yml`) sur chaque
+**Où elle est vérifiée.** En local par le hook `commit-msg` ; en CI (`.github/workflows/ci.yml`) sur chaque
 commit de la PR **et sur le titre de la PR**, puisqu'il devient le message du commit de squash sur `main`.
 
 ## Branches et pull requests
@@ -75,7 +76,19 @@ commit de la PR **et sur le titre de la PR**, puisqu'il devient le message du co
 
 ### Vérifications obligatoires (à cocher dans *Settings → Branches → main*)
 
-| Workflow | Job |
-|---|---|
-| Conventions | `Conventional Commits`, `Pre-commit hooks (lint, format, secrets)` |
-| Backend | `Unit + functional tests`, `End-to-end (Docker image + PostgreSQL)`, `Engine benchmark (68 checks)` |
+Tous les jobs de `.github/workflows/ci.yml` : `Conventional Commits`, `Lint (pre-commit hooks)`,
+`Unit + functional tests`, `Build + end-to-end (Docker, PostgreSQL)`, `Engine benchmark (68 checks)`.
+
+## Ajouter un critère d'affectation
+
+Aucun code à modifier : un critère est une donnée, interprétée par `packages/engine/rules`.
+
+1. Donner la valeur à chaque étudiant dans ses `attributes` (ex. `{"absences": 3}`) ; pour un seuil propre à une
+   université, dans les `attributes` de l'université (ex. `{"min_associative": 40}`).
+2. Créer une nouvelle version de configuration (`POST /api/admin/configs`) qui l'utilise : pondération dans
+   `criteria`, seuil dans `eliminatory`, points dans `bonuses`, ou départage dans `tie_break`. Une clé inconnue des
+   données est refusée avec la liste des clés disponibles.
+3. Lancer un run avec cette version (`POST /api/admin/runs`).
+
+Format complet et exemple commenté : [`docs/technical/architecture.md` §5](docs/technical/architecture.md).
+Le test `test_new_criterion_without_code_changes_outcome` (`packages/engine/tests`) montre le principe.

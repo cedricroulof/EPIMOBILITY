@@ -1,4 +1,5 @@
-# Plateforme complète en une commande : docker compose up --build
+# Plateforme complète en une commande : docker compose up --build (ou pnpm dev)
+# Base + API aujourd'hui ; le service web (apps/web) s'ajoutera ici.
 # API sur http://localhost:8000/api, documentation OpenAPI sur http://localhost:8000/docs
 services:
   db:
@@ -15,7 +16,9 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   api:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg://epimobility:${POSTGRES_PASSWORD:-epimobility}@db:5432/epimobility
       APP_ENV: ${APP_ENV:-development}

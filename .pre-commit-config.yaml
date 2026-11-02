@@ -1,5 +1,5 @@
 # Installation (une fois par clone) : pre-commit install
-# Les mêmes hooks tournent en CI (.github/workflows/conventions.yml) : un hook contourné localement est rattrapé en PR.
+# Les mêmes hooks tournent en CI (.github/workflows/ci.yml) : un hook contourné localement est rattrapé en PR.
 default_install_hook_types: [pre-commit, commit-msg]
 default_stages: [pre-commit] # seul le hook de message tourne à l'étape commit-msg
 

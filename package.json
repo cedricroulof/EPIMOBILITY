@@ -1,0 +1,12 @@
+{
+  "name": "epi-mobility",
+  "private": true,
+  "description": "Plateforme de mobilité internationale (projet pédagogique : partenariats fictifs)",
+  "packageManager": "pnpm@9.14.2",
+  "scripts": {
+    "dev": "docker compose up --build",
+    "test": "uv run pytest",
+    "lint": "uvx pre-commit run --all-files",
+    "bench": "uv run python packages/engine/benchmark/run.py"
+  }
+}
