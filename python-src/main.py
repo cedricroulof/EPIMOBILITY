@@ -1,61 +1,81 @@
 #!/usr/bin/env python3
 #
 # Source code from
-# https://www.geeksforgeeks.org/dsa/stable-marriage-problem/
-from typing import List
+# Video example : https://youtu.be/0m_YW1zVs-Q?si=r3_IDyVNzvjlh9z0
 
-def prefers(women: List[List[int]], w: int, m: int, m1: int) -> bool:
-    for i in range(len(women(w))):
-        if women[w][i] == m:
-            return True
-        if women[w][i] == m1:
-            return False
-    return False
-
-def stable_marriage(men: List[List[int]], women: List[List[int]]) -> List[int]:
-    n = len(men)
-    w_partner = [-1] * n
-    m_partner = [-1] * n
-    next_proposal = [0] * n
-
-    free_man = [True] * n
-    free_count = n
-
-    while free_count > 0:
-       #  m = next((m for m in range(n) if free_man[m]), None)
-        m = next((m for m in range(n) if free_man[m]), None)
-
-        w = men[m][next_proposal[m]]
-        next_proposal[m] += 1
-
-        if w_partner[w] == -1:
-            w_partner[w] = m
-            m_partner[m] = w
-            free_man = False
-            free_count -= 1
-        else:
-            m1 = w_partner[w]
-
-            if prefers(women, w, m, m1):
-                w_partner[w] = m
-                m_partner[m] = w
-                free_man[m] = False
-                free_man[m1] = True
-    return m_partner
+from models.Student import Student
+from models.University import University
+from engine.GaleShapleyEngine import StudentPool
 
 if __name__ == "__main__":
-    n = 3
 
-    men = [
-        [1, 0, 2],
-        [2, 1, 0],
-        [0, 2, 1],
-    ]
-    women = [
-        [1, 0, 2],
-        [2, 1, 0],
-        [0, 2, 1],
-    ]
-    result = stable_marriage(men, women)
-    for i in range(result):
-        print(result[i], end=' ' if i != n - 1 else '\n')
+    # Student init
+    pool = []
+    s1 = Student("toto", ['u1', 'u2', 'u3'])
+    s2 = Student("tata", ['u3', 'u1', 'u2'])
+    s3 = Student("titi", ['u3', 'u2', 'u1'])
+    pool.append(s1)
+    pool.append(s2)
+    pool.append(s3)
+
+    spool = StudentPool(pool)
+    print(spool)
+
+    # University init
+    u1 = University("u1", ["toto", "titi", "tata"])
+    u2 = University("u2", ["toto", "tata", "titi"])
+    u3 = University("u3", ["tata", "toto", "titi"])
+    upool = [u1, u2, u3]
+
+    spool.stable_marriage(upool, True)
+
+    for s in spool.pool:
+        print(f"{s.name} -> {s.choice}")
+    print("=============================")
+    for u in upool:
+        print(f"{u.name} -> {u.choice}")
+
+    # Video example
+    A = Student("A", ["O", "M", "N", "L", "P"])
+    B = Student("B", ["P", "N", "M", "L", "O"])
+    C = Student("C", ["M", "P", "L", "O", "N"])
+    D = Student("D", ["P", "M", "O", "N", "L"])
+    E = Student("E", ["O", "L", "M", "N", "P"])
+    sp = StudentPool([A, B, C, D, E])
+
+    L = University("L", ["D", "B", "E", "C", "A"])
+    M = University("M", ["B", "A", "D", "C", "E"])
+    N = University("N", ["A", "C", "E", "D", "B"])
+    O = University("O", ["D", "A", "C", "B", "E"])
+    P = University("P", ["B", "E", "A", "C", "D"])
+    up = [L, M, N, O, P]
+    # print(sp)
+    # sp.stable_marriage(up, True)
+    # for s in sp.pool:
+    #     print(f"{s.name} -> {s.choice}")
+    # print("=============================")
+    # for u in up:
+    #     print(f"{u.name} -> {u.choice}")
+
+    # Fictional test from Gemini
+    S1 = Student("S1", ["U1", "U2", "U3", "U4", "U5"])
+    S2 = Student("S2", ["U2", "U1", "U4", "U3", "U5"])
+    S3 = Student("S3", ["U1", "U3", "U2", "U5", "U4"])
+    S4 = Student("S4", ["U3", "U4", "U1", "U2", "U5"])
+    S5 = Student("S5", ["U1", "U2", "U5", "U3", "U4"])
+    ssp = StudentPool([S1, S2, S3, S4, S5])
+
+    U1 = University("U1", ["S2", "S1", "S3", "S5", "S4"])
+    U2 = University("U2", ["S1", "S2", "S3", "S4", "S5"])
+    U3 = University("U3", ["S4", "S3", "S1", "S5", "S2"])
+    U4 = University("U4", ["S3", "S2", "S5", "S4", "S1"])
+    U5 = University("U5", ["S5", "S4", "S1", "S2", "S3"])
+    uup = [U1, U2, U3, U4, U5]
+
+    # Expected final output: each SX -> UX where X = [1 ... 5]
+    ssp.stable_marriage(uup, True)
+    for s in ssp.pool:
+        print(f"{s.name} -> {s.choice}")
+    print("=============================")
+    for u in uup:
+        print(f"{u.name} -> {u.choice}")
