@@ -1,0 +1,43 @@
+# Python part of the monorepo: a single environment and a single lockfile (uv.lock) for apps/api and packages/*.
+[project]
+name = "epi-mobility"
+version = "0.1.0"
+description = "API and matching engine of the international mobility platform (educational project: fictional partnerships)"
+requires-python = ">=3.12"
+dependencies = [
+    "argon2-cffi",
+    "fastapi",
+    "psycopg[binary]",
+    "sqlalchemy>=2",
+    "uvicorn",
+]
+
+[dependency-groups]
+dev = ["httpx2", "pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["packages/engine", "packages/generator", "apps/api/app"]  # imported as engine, generator, app
+exclude = ["**/tests", "packages/engine/benchmark"]
+dev-mode-dirs = ["packages", "apps/api"]
+
+[tool.pytest.ini_options]
+testpaths = ["packages", "apps"]
+addopts = "-ra --import-mode=importlib"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # the formatter handles code length; a few long comments and strings remain
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "engine", "generator"]
+
+[tool.ruff.lint.per-file-ignores]
+"packages/engine/benchmark/run.py" = ["B023"]  # lambdas measured and called in the same iteration

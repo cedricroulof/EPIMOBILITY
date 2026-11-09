@@ -1,0 +1,10 @@
+# Build context = repository root: send only what the images use
+**
+!pyproject.toml
+!uv.lock
+!.python-version
+!packages/engine/
+!packages/generator/
+!apps/api/app/
+**/__pycache__
+**/tests
