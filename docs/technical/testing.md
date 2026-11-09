@@ -11,7 +11,7 @@ Chaque niveau couvre ce que le niveau inférieur **ne peut pas voir**, sans rép
 | Fonctionnel | `apps/api/tests/functional` | 15 | ≈ 3 s | Chaque règle métier et de sécurité exposée par l'API |
 | End-to-end | `apps/api/tests/e2e` | 1 scénario | ≈ 5 s (≈ 1 min en CI avec le build Docker) | La plateforme démarrée, pilotée en HTTP comme le feront le web et le mobile |
 | Performance | `packages/engine/benchmark/run.py` | 68 vérifications | ≈ 6 s | Temps de calcul par algorithme, de 1 000 à 50 000 étudiants, et comparatif chiffré |
-| Conventions | `.pre-commit-config.yaml` | – | – | Messages de commit, lint, format, absence de clé privée |
+| Conventions | `.pre-commit-config.yaml` | – | – | Messages de commit, lint, format, secrets |
 
 ## Unitaire : le moteur, isolé
 
@@ -85,9 +85,10 @@ l'autre, seules les vérifications sont comparables. Protocole : [`benchmark-pro
 
 ## Conventions
 
-Les hooks pre-commit (format, lint, clés privées, message de commit) tournent localement à chaque commit, et la CI les
+Les hooks pre-commit (format, lint, secrets, message de commit) tournent localement à chaque commit, et la CI les
 rejoue sur tout le dépôt : un hook contourné localement (`--no-verify`) est rattrapé en PR. Détail dans
-[`CONTRIBUTING.md`](../../CONTRIBUTING.md).
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md). La CI vérifie en plus les licences des dépendances livrées
+(`pip-licenses`) et cherche des secrets dans tout l'historique (`gitleaks`).
 
 ## Lancer une partie seulement
 

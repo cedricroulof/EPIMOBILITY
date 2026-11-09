@@ -3,6 +3,7 @@
 name = "epi-mobility"
 version = "0.1.0"
 description = "API et moteur d'affectation de la plateforme de mobilité internationale (projet pédagogique : partenariats fictifs)"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "argon2-cffi",
@@ -27,6 +28,12 @@ dev-mode-dirs = ["packages", "apps/api"]
 [tool.pytest.ini_options]
 testpaths = ["packages", "apps"]
 addopts = "-ra --import-mode=importlib"
+
+# Job « Dependency licences » de la CI : une dépendance livrée dont la licence n'est pas ici fait échouer la PR.
+# LGPL-3.0-only : psycopg, utilisé comme bibliothèque sans modification, compatible avec un projet MIT.
+[tool.pip-licenses]
+from = "mixed"
+allow-only = "MIT;MIT License;MIT-0;BSD-2-Clause;BSD-3-Clause;Apache-2.0;PSF-2.0;LGPL-3.0-only"
 
 [tool.ruff]
 line-length = 120

@@ -20,7 +20,7 @@ pnpm test                     # tous les tests (ou : uv run pytest)
 | `trailing-whitespace`, `end-of-file-fixer` | fichiers propres, diffs sans bruit |
 | `check-yaml`, `check-toml`, `check-merge-conflict` | pas de configuration cassée ni de marqueur de conflit oublié |
 | `check-added-large-files` | pas de binaire lourd dans l'historique |
-| `detect-private-key` | aucun secret dans le dépôt (exigence du sujet) |
+| `detect-private-key`, `gitleaks` | aucun secret dans le dépôt (exigence du sujet) ; la CI scanne aussi tout l'historique |
 | `ruff-check`, `ruff-format` | lint et format Python, corrigés automatiquement |
 | `conventional-pre-commit` (étape `commit-msg`) | message conforme à Conventional Commits |
 
@@ -77,7 +77,13 @@ commit de la PR **et sur le titre de la PR**, puisqu'il devient le message du co
 ### Vérifications obligatoires (à cocher dans *Settings → Branches → main*)
 
 Tous les jobs de `.github/workflows/ci.yml` : `Conventional Commits`, `Lint (pre-commit hooks)`,
-`Unit + functional tests`, `Build + end-to-end (Docker, PostgreSQL)`, `Engine benchmark (68 checks)`.
+`Dependency licences`, `Secrets (full history)`, `Unit + functional tests`, `Build + end-to-end (Docker, PostgreSQL)`,
+`Engine benchmark (68 checks)`.
+
+### Ajouter une dépendance Python
+
+La CI refuse toute dépendance livrée dont la licence n'est pas autorisée. Si la nouvelle licence convient à un projet
+MIT, l'ajouter à `allow-only` dans `[tool.pip-licenses]` (`pyproject.toml`), en expliquant le choix dans la PR.
 
 ## Ajouter un critère d'affectation
 

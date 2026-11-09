@@ -268,7 +268,7 @@ Comparatif sur le besoin (nominal) : Gale-Shapley 62,9 % de 1ers vœux, 17,8 % d
 - données : `data/universities.json` validé par un schéma JSON (100 entrées, 6 continents, GPS, chaque photo avec `author`/`license`/`alt`, `cost_of_living.source`, `sources[]` non vide) ;
 - le banc (`pnpm bench`) est une suite d'assertions et tourne en CI sur chaque PR, rapport en artefact (sans commit du rapport : les temps varient, seules les vérifications sont comparables).
 
-**CI** (GitHub Actions, chaque PR) : `ruff check` + `ruff format --check`, `pytest`, banc, `docker build`. Vérifications obligatoires sur `main`.
+**CI** (GitHub Actions, chaque PR) : Conventional Commits, `ruff check` + `ruff format --check`, licences des dépendances (`pip-licenses`), secrets sur tout l'historique (`gitleaks`), `pytest`, banc, `docker build`. Vérifications obligatoires sur `main`.
 
 **CD** : merge sur `main` → déploiement Fly.io ; `alembic upgrade head` au démarrage ; seed du jeu de démo si la base est vide. La SPA est construite dans l'image et servie par l'API sous `/` (l'API sous `/api`). Mobile : build APK / simulateur publié en artefact par le pipeline du dépôt mobile (ou du même dépôt, question ouverte §14).
 
