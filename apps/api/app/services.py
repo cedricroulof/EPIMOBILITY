@@ -1,4 +1,4 @@
-"""Orchestration : base ↔ moteur. `load_inputs` (mapping base → moteur) est le contrat du rejeu (§6)."""
+"""Orchestration: database ↔ engine. `load_inputs` (database → engine mapping) is the replay contract (§6)."""
 
 import hashlib
 import json
@@ -20,12 +20,12 @@ DEMO_STUDENTS = 3
 
 
 def seed(db, n_students=1000, n_unis=100, seed=42, password=None) -> None:
-    """Jeu de démo chargé au premier démarrage : cohorte générée, configuration par défaut, comptes de démo."""
+    """Demo dataset loaded on first startup: generated cohort, default configuration, demo accounts."""
     if db.scalar(select(func.count()).select_from(m.University)):
         return
     password = password or os.environ.get("DEMO_PASSWORD") or (None if _production() else "demo1234")
     if password is None:
-        raise RuntimeError("DEMO_PASSWORD est obligatoire en production")
+        raise RuntimeError("DEMO_PASSWORD is required in production")
     unis, students = generator.generate("nominal", n_students, n_unis, seed)
     db.add_all(
         m.University(
@@ -75,7 +75,7 @@ def attribute_keys(db) -> tuple[set, set]:
 
 
 def load_inputs(db) -> tuple[list, list]:
-    """État courant de la base → objets du moteur, triés par id : l'ordre des lignes n'influence jamais le résultat."""
+    """Current database state → engine objects, sorted by id: row order never influences the result."""
     unis = [
         generator.University(
             u.id, u.name, u.continent, u.capacity, u.min_gpa, u.min_cefr, u.selectivity, dict(u.attributes)
@@ -106,10 +106,10 @@ def from_snapshot(snapshot: str) -> tuple[list, list]:
 
 
 def execute(db, config: m.RuleConfig, algorithm: str, seed: int | None, inputs, replay_of=None) -> m.Run:
-    """Snapshot → moteur → persistance, en une transaction. ValueError si la configuration ne colle pas aux données."""
+    """Snapshot → engine → persistence, in one transaction. ValueError if the configuration does not match the data."""
     seed = random.randrange(2**31) if seed is None else seed
     unis, students = inputs
-    generator.draw_lottery(students, seed)  # au snapshot : le rejeu relit les mêmes numéros
+    generator.draw_lottery(students, seed)  # in the snapshot: the replay reads back the same numbers
     snapshot = generator.snapshot(unis, students)
     t0 = time.perf_counter()
     problem = algorithms.Problem(unis, students, config.config)

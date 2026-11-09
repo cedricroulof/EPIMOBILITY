@@ -1,8 +1,8 @@
-# Partie Python du mono-dépôt : un seul environnement et un seul verrou (uv.lock) pour apps/api et packages/*.
+# Python part of the monorepo: a single environment and a single lockfile (uv.lock) for apps/api and packages/*.
 [project]
 name = "epi-mobility"
 version = "0.1.0"
-description = "API et moteur d'affectation de la plateforme de mobilité internationale (projet pédagogique : partenariats fictifs)"
+description = "API and matching engine of the international mobility platform (educational project: fictional partnerships)"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
@@ -21,7 +21,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["packages/engine", "packages/generator", "apps/api/app"]  # importés comme engine, generator, app
+packages = ["packages/engine", "packages/generator", "apps/api/app"]  # imported as engine, generator, app
 exclude = ["**/tests", "packages/engine/benchmark"]
 dev-mode-dirs = ["packages", "apps/api"]
 
@@ -29,8 +29,8 @@ dev-mode-dirs = ["packages", "apps/api"]
 testpaths = ["packages", "apps"]
 addopts = "-ra --import-mode=importlib"
 
-# Job « Dependency licences » de la CI : une dépendance livrée dont la licence n'est pas ici fait échouer la PR.
-# LGPL-3.0-only : psycopg, utilisé comme bibliothèque sans modification, compatible avec un projet MIT.
+# "Dependency licences" CI job: a shipped dependency whose licence is not listed here fails the PR.
+# LGPL-3.0-only: psycopg, used as an unmodified library, compatible with an MIT project.
 [tool.pip-licenses]
 from = "mixed"
 allow-only = "MIT;MIT License;MIT-0;BSD-2-Clause;BSD-3-Clause;Apache-2.0;PSF-2.0;LGPL-3.0-only"
@@ -40,11 +40,11 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-# E et W : pycodestyle (PEP 8) ; N : nommage PEP 8 ; line-length : limite d'équipe, plus large que les 79 de PEP 8.
+# E and W: pycodestyle (PEP 8); N: PEP 8 naming; line-length: team limit, wider than PEP 8's 79.
 select = ["E", "W", "F", "I", "N", "B", "UP"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app", "engine", "generator"]
 
 [tool.ruff.lint.per-file-ignores]
-"packages/engine/benchmark/run.py" = ["B023"]  # lambdas mesurées et appelées dans la même itération
+"packages/engine/benchmark/run.py" = ["B023"]  # lambdas measured and called in the same iteration

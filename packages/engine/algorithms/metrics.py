@@ -1,4 +1,4 @@
-"""Comparatif chiffré (% de 1ers vœux, % de non-affectés, rang moyen, stabilité) et explications par étudiant."""
+"""Numeric comparison (% of 1st wishes, % unassigned, average rank, stability) and per-student explanations."""
 
 import statistics
 
@@ -25,8 +25,8 @@ def summarize(result, p):
 
 
 def explain(student, result, p):
-    """Pour chaque vœu : pourquoi obtenu / refusé / inéligible / non examiné.
-    Répond à « pourquoi ce vœu et pas le précédent ? »."""
+    """For each wish: why it was obtained / rejected / ineligible / not considered.
+    Answers "why this wish and not the previous one?"."""
     a = result.assignment[student.id]
     a_rank = student.wishes.index(a) if a is not None else None
     out = []
@@ -38,27 +38,28 @@ def explain(student, result, p):
             e["status"] = "not_considered"
         elif p.reasons[(student.id, u)]:
             e["status"], e["failed"] = "ineligible", p.reasons[(student.id, u)]
-        else:  # éligible mais refusé : complet, et le dernier admis avait un meilleur rang
+        else:  # eligible but rejected: full, and the last admitted student had a better rank
             e["status"], e["cutoff"] = "rejected", result.round_cutoff.get((u, i), result.cutoff.get(u))
         out.append(e)
     return out
 
 
 def explanation_violations(result, p):
-    """Cohérence des explications : un refusé n'excède pas le plancher annoncé, un admis l'atteint ; un vœu refusé
-    sans plancher (`cutoff: null`) n'est possible que si l'université n'avait aucune place ouverte à ce moment."""
+    """Consistency of explanations: a rejected student does not exceed the stated cutoff, an admitted student reaches
+    it; a rejected wish with no cutoff (`cutoff: null`) is only possible if the university had no open seat at that
+    moment."""
     out = []
     for s in p.students:
         for e in explain(s, result, p):
             if e["status"] == "rejected" and e["cutoff"] is not None and e["score"] > e["cutoff"]:
-                out.append(f"{s.id} refusé à {e['university']} : score {e['score']} > plancher {e['cutoff']}")
+                out.append(f"{s.id} rejected by {e['university']}: score {e['score']} > cutoff {e['cutoff']}")
             if e["status"] == "assigned" and e["cutoff"] is not None and e["score"] < e["cutoff"]:
-                out.append(f"{s.id} admis à {e['university']} : score {e['score']} < plancher {e['cutoff']}")
+                out.append(f"{s.id} admitted to {e['university']}: score {e['score']} < cutoff {e['cutoff']}")
             if (
                 e["status"] == "rejected"
                 and e["cutoff"] is None
                 and p.cap[e["university"]] > 0
                 and result.algorithm == "gale_shapley"
             ):
-                out.append(f"{s.id} refusé à {e['university']} sans plancher alors que des places existaient")
+                out.append(f"{s.id} rejected by {e['university']} with no cutoff although seats existed")
     return out

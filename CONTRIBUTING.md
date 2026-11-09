@@ -1,100 +1,100 @@
-# Contribuer
+# Contributing
 
-## Mise en place (une fois par clone)
+## Setup (once per clone)
 
-Prérequis : Git, Docker, Node 20+ avec [pnpm](https://pnpm.io/), [uv](https://docs.astral.sh/uv/) et
+Prerequisites: Git, Docker, Node 20+ with [pnpm](https://pnpm.io/), [uv](https://docs.astral.sh/uv/) and
 [pre-commit](https://pre-commit.com/) (`uv tool install pre-commit`).
 
 ```bash
-pre-commit install            # installe les hooks pre-commit ET commit-msg
-uv sync                       # dépendances Python verrouillées (uv.lock), Python 3.12 téléchargé si absent
-pnpm test                     # tous les tests (ou : uv run pytest)
+pre-commit install            # installs the pre-commit AND commit-msg hooks
+uv sync                       # locked Python dependencies (uv.lock), Python 3.12 downloaded if missing
+pnpm test                     # all tests (or: uv run pytest)
 ```
 
 ## Hooks
 
-À chaque `git commit`, sur les fichiers modifiés :
+On every `git commit`, on the changed files:
 
-| Hook | Rôle |
+| Hook | Role |
 |---|---|
-| `trailing-whitespace`, `end-of-file-fixer` | fichiers propres, diffs sans bruit |
-| `check-yaml`, `check-toml`, `check-merge-conflict` | pas de configuration cassée ni de marqueur de conflit oublié |
-| `check-added-large-files` | pas de binaire lourd dans l'historique |
-| `detect-private-key`, `gitleaks` | aucun secret dans le dépôt (exigence du sujet) ; la CI scanne aussi tout l'historique |
-| `ruff-check`, `ruff-format` | lint et format Python, corrigés automatiquement |
-| `conventional-pre-commit` (étape `commit-msg`) | message conforme à Conventional Commits |
+| `trailing-whitespace`, `end-of-file-fixer` | clean files, diffs without noise |
+| `check-yaml`, `check-toml`, `check-merge-conflict` | no broken configuration or forgotten conflict marker |
+| `check-added-large-files` | no heavy binaries in the history |
+| `detect-private-key`, `gitleaks` | no secrets in the repository (brief requirement); CI also scans the full history |
+| `ruff-check`, `ruff-format` | Python lint and format, fixed automatically |
+| `conventional-pre-commit` (`commit-msg` stage) | message conforming to Conventional Commits |
 
-Un hook qui corrige un fichier fait échouer le commit : relire la correction, `git add`, recommiter.
-La CI rejoue les mêmes hooks, en même version : contourner un hook en local (`--no-verify`) ne fait que repousser
-l'échec à la PR.
+A hook that fixes a file makes the commit fail: review the fix, `git add`, commit again.
+CI replays the same hooks, at the same versions: bypassing a hook locally (`--no-verify`) only postpones
+the failure to the PR.
 
-## Convention de commits : [Conventional Commits 1.0.0](https://www.conventionalcommits.org/fr/v1.0.0/)
+## Commit convention: [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
 
 ```
-<type>(<portée facultative>): <description à l'impératif, en anglais>
+<type>(<optional scope>): <description in the imperative, in English>
 
-[corps facultatif : le pourquoi]
+[optional body: the why]
 
-[pied facultatif : Closes #12, BREAKING CHANGE: …]
+[optional footer: Closes #12, BREAKING CHANGE: …]
 ```
 
-| Type | Usage | Effet sur la version |
+| Type | Usage | Effect on the version |
 |---|---|---|
-| `feat` | nouvelle fonctionnalité | mineure |
-| `fix` | correction de bug | correctif |
-| `docs` | documentation seule | – |
-| `test` | ajout ou correction de tests | – |
-| `refactor` | restructuration sans changement de comportement | – |
-| `perf` | amélioration de performance | correctif |
-| `style` | format, sans changement de code | – |
-| `build` | dépendances, Docker, outillage de build | – |
-| `ci` | pipelines GitHub Actions | – |
-| `chore` | maintenance qui n'entre dans aucun autre type | – |
-| `revert` | annulation d'un commit | selon le commit annulé |
+| `feat` | new feature | minor |
+| `fix` | bug fix | patch |
+| `docs` | documentation only | – |
+| `test` | adding or fixing tests | – |
+| `refactor` | restructuring without behavior change | – |
+| `perf` | performance improvement | patch |
+| `style` | formatting, no code change | – |
+| `build` | dependencies, Docker, build tooling | – |
+| `ci` | GitHub Actions pipelines | – |
+| `chore` | maintenance that fits no other type | – |
+| `revert` | reverting a commit | depends on the reverted commit |
 
-Portées usuelles : `api`, `engine`, `web`, `mobile`, `data`, `docs`. Un `!` après le type (`feat(api)!: …`) signale
-un changement incompatible (version majeure).
+Common scopes: `api`, `engine`, `web`, `mobile`, `data`, `docs`. A `!` after the type (`feat(api)!: …`) signals
+a breaking change (major version).
 
-Exemples : `feat(api): add wishes endpoint`, `fix(engine): keep cutoff when capacity is zero`,
+Examples: `feat(api): add wishes endpoint`, `fix(engine): keep cutoff when capacity is zero`,
 `docs: describe the test strategy`.
 
-**Pourquoi cette convention.** Le sujet demande une convention de commits commune. Celle-ci rend l'historique lisible
-(qui a fait quoi, de quelle nature), et le type de chaque commit détermine la prochaine version sémantique et le
-`CHANGELOG.md`, sans débat.
+**Why this convention.** The project brief asks for a shared commit convention. This one keeps the history readable
+(who did what, of what kind), and the type of each commit determines the next semantic version and the
+`CHANGELOG.md`, with no debate.
 
-**Où elle est vérifiée.** En local par le hook `commit-msg` ; en CI (`.github/workflows/ci.yml`) sur chaque
-commit de la PR **et sur le titre de la PR**, puisqu'il devient le message du commit de squash sur `main`.
+**Where it is checked.** Locally by the `commit-msg` hook; in CI (`.github/workflows/ci.yml`) on every
+commit of the PR **and on the PR title**, since it becomes the message of the squash commit on `main`.
 
-## Branches et pull requests
+## Branches and pull requests
 
-- `main` est protégée : pas de push direct, une PR relue et une CI verte pour merger.
-- Une branche par issue, nommée `<type>/<sujet-court>` : `feature/wishes-endpoint`, `fix/cutoff-zero-capacity`,
+- `main` is protected: no direct push, a reviewed PR and a green CI to merge.
+- One branch per issue, named `<type>/<short-topic>`: `feature/wishes-endpoint`, `fix/cutoff-zero-capacity`,
   `docs/test-strategy`.
-- La PR est reliée à son issue (`Closes #12` dans la description), relue par au moins un autre membre, mergée en
-  **squash** : un commit par PR sur `main`, au titre conforme à la convention.
-- Versions taguées en semver aux étapes clés (`v0.1.0` au follow-up de décembre, `v1.0.0` à la soutenance).
+- The PR is linked to its issue (`Closes #12` in the description), reviewed by at least one other member, merged with
+  **squash**: one commit per PR on `main`, with a title that follows the convention.
+- Versions tagged in semver at key milestones (`v0.1.0` at the December follow-up, `v1.0.0` at the final defense).
 
-### Vérifications obligatoires (à cocher dans *Settings → Branches → main*)
+### Required checks (to tick in *Settings → Branches → main*)
 
-Tous les jobs de `.github/workflows/ci.yml` : `Conventional Commits`, `Lint (pre-commit hooks)`,
+All jobs of `.github/workflows/ci.yml`: `Conventional Commits`, `Lint (pre-commit hooks)`,
 `Dependency licences`, `Secrets (full history)`, `Unit + functional tests`, `Build + end-to-end (Docker, PostgreSQL)`,
 `Engine benchmark (68 checks)`.
 
-### Ajouter une dépendance Python
+### Adding a Python dependency
 
-La CI refuse toute dépendance livrée dont la licence n'est pas autorisée. Si la nouvelle licence convient à un projet
-MIT, l'ajouter à `allow-only` dans `[tool.pip-licenses]` (`pyproject.toml`), en expliquant le choix dans la PR.
+CI rejects any shipped dependency whose licence is not allowed. If the new licence suits an MIT project, add it to
+`allow-only` in `[tool.pip-licenses]` (`pyproject.toml`) and explain the choice in the PR.
 
-## Ajouter un critère d'affectation
+## Adding an assignment criterion
 
-Aucun code à modifier : un critère est une donnée, interprétée par `packages/engine/rules`.
+No code to change: a criterion is data, interpreted by `packages/engine/rules`.
 
-1. Donner la valeur à chaque étudiant dans ses `attributes` (ex. `{"absences": 3}`) ; pour un seuil propre à une
-   université, dans les `attributes` de l'université (ex. `{"min_associative": 40}`).
-2. Créer une nouvelle version de configuration (`POST /api/admin/configs`) qui l'utilise : pondération dans
-   `criteria`, seuil dans `eliminatory`, points dans `bonuses`, ou départage dans `tie_break`. Une clé inconnue des
-   données est refusée avec la liste des clés disponibles.
-3. Lancer un run avec cette version (`POST /api/admin/runs`).
+1. Give each student the value in their `attributes` (e.g. `{"absences": 3}`); for a threshold specific to a
+   university, in the university's `attributes` (e.g. `{"min_associative": 40}`).
+2. Create a new configuration version (`POST /api/admin/configs`) that uses it: weight in
+   `criteria`, threshold in `eliminatory`, points in `bonuses`, or tie-break in `tie_break`. A key unknown to the
+   data is rejected with the list of available keys.
+3. Start a run with this version (`POST /api/admin/runs`).
 
-Format complet et exemple commenté : [`docs/technical/architecture.md` §5](docs/technical/architecture.md).
-Le test `test_new_criterion_without_code_changes_outcome` (`packages/engine/tests`) montre le principe.
+Full format and annotated example: [`docs/technical/architecture.md` §5](docs/technical/architecture.md).
+The test `test_new_criterion_without_code_changes_outcome` (`packages/engine/tests`) shows the principle.

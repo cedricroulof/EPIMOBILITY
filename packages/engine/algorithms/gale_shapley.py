@@ -1,5 +1,5 @@
-"""Gale-Shapley : acceptation différée, étudiants proposants, avec capacités (hospitals/residents).
-Stable (aucune paire bloquante), optimal pour les étudiants, non manipulable par eux."""
+"""Gale-Shapley: deferred acceptance, student-proposing, with capacities (hospitals/residents).
+Stable (no blocking pair), student-optimal, not manipulable by students."""
 
 import heapq
 from collections import deque
@@ -8,7 +8,7 @@ from .problem import Problem, Result
 
 
 def gale_shapley(p: Problem) -> Result:
-    held = {u: [] for u in p.cap}  # tas de (-rang, s) : le sommet est le pire admis provisoire
+    held = {u: [] for u in p.cap}  # heap of (-rank, s): the top is the worst tentatively admitted student
     nxt = {s.id: 0 for s in p.students}
     free = deque(s.id for s in p.students)
     while free:
@@ -24,7 +24,7 @@ def gale_shapley(p: Problem) -> Result:
                 heapq.heappush(held[u], (-r, s))
                 break
             worst_r, worst = held[u][0]
-            if r < -worst_r:  # u préfère s à son pire admis : s remplace, l'évincé redevient libre
+            if r < -worst_r:  # u prefers s to its worst admitted: s takes over, the evicted student is free again
                 heapq.heapreplace(held[u], (-r, s))
                 free.append(worst)
                 break

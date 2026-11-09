@@ -1,4 +1,4 @@
-"""Sessions opaques (ADR-0005) : jeton aléatoire stocké haché, transporté en cookie (web) ou en Bearer (mobile)."""
+"""Opaque sessions (ADR-0005): random token stored hashed, carried in a cookie (web) or as a Bearer token (mobile)."""
 
 import hashlib
 import os
@@ -21,9 +21,9 @@ COOKIE = "session"
 SECURE_COOKIE = os.environ.get("APP_ENV", "development") == "production"
 MAX_FAILURES, WINDOW_S = 5, 60
 
-_hasher = PasswordHasher()  # argon2id, paramètres RFC 9106
+_hasher = PasswordHasher()  # argon2id, RFC 9106 parameters
 _DUMMY_HASH = _hasher.hash("timing-equalizer")
-# ponytail: compteur en mémoire, par processus ; à porter en base si l'API tourne sur plusieurs instances
+# ponytail: in-memory, per-process counter; move it to the database if the API runs on several instances
 _failures: dict[tuple[str, str], deque] = defaultdict(deque)
 
 
@@ -41,15 +41,15 @@ def login(db, email: str, password: str, client_ip: str) -> tuple[str, User]:
     while fails and t - fails[0] > WINDOW_S:
         fails.popleft()
     if len(fails) >= MAX_FAILURES:
-        raise HTTPException(429, "Trop de tentatives, réessayez dans une minute")
+        raise HTTPException(429, "Too many attempts, try again in a minute")
     user = db.scalar(select(User).where(User.email == email.lower()))
     try:
-        _hasher.verify(user.password_hash if user else _DUMMY_HASH, password)  # même durée, compte connu ou non
+        _hasher.verify(user.password_hash if user else _DUMMY_HASH, password)  # same duration, known account or not
         if user is None:
             raise VerifyMismatchError
     except VerifyMismatchError:
         fails.append(t)
-        raise HTTPException(401, "Email ou mot de passe incorrect") from None
+        raise HTTPException(401, "Incorrect email or password") from None
     fails.clear()
     token = secrets.token_urlsafe(32)
     db.add(Session(token_hash=_token_hash(token), user_id=user.id, expires_at=now() + SESSION_TTL))
@@ -72,8 +72,8 @@ def current_user(request: Request, db: Annotated[OrmSession, Depends(get_db)]) -
     token = _token(request)
     session = db.get(Session, _token_hash(token)) if token else None
     if session is None or session.expires_at < now():
-        raise HTTPException(401, "Authentification requise", headers={"WWW-Authenticate": "Bearer"})
-    session.expires_at = now() + SESSION_TTL  # expiration glissante
+        raise HTTPException(401, "Authentication required", headers={"WWW-Authenticate": "Bearer"})
+    session.expires_at = now() + SESSION_TTL  # sliding expiration
     db.commit()
     return session.user
 
@@ -81,7 +81,7 @@ def current_user(request: Request, db: Annotated[OrmSession, Depends(get_db)]) -
 def require_role(role: str):
     def check(user: Annotated[User, Depends(current_user)]) -> User:
         if user.role != role:
-            raise HTTPException(403, "Accès refusé")
+            raise HTTPException(403, "Access denied")
         return user
 
     return check

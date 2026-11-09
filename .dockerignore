@@ -1,4 +1,4 @@
-# Contexte de build = racine du dépôt : n'envoyer que ce que les images utilisent
+# Build context = repository root: send only what the images use
 **
 !pyproject.toml
 !uv.lock

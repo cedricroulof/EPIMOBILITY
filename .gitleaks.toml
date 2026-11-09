@@ -1,7 +1,7 @@
-# Règles par défaut de gitleaks, moins les faux positifs connus.
+# gitleaks default rules, minus known false positives.
 [extend]
 useDefault = true
 
 [[allowlists]]
-description = "Sommes de contrôle CocoaPods (SPEC CHECKSUMS) : ce ne sont pas des secrets"
+description = "CocoaPods checksums (SPEC CHECKSUMS) are not secrets"
 paths = ['''(^|/)Podfile\.lock$''']

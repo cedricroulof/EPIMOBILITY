@@ -1,4 +1,4 @@
-# Dépendances à jour (exigence du sujet). Les préfixes respectent Conventional Commits, vérifié par la CI.
+# Keeps dependencies up to date (brief requirement). Prefixes follow Conventional Commits, which CI checks.
 version: 2
 updates:
   - package-ecosystem: uv

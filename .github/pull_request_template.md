@@ -1,15 +1,15 @@
 Closes #
 
-## Quoi et pourquoi
+## What and why
 
-## Comment c'est vérifié
+## How it was checked
 
-<!-- Tests ajoutés ou modifiés, commande lancée, parcours manuel (clavier, lecteur d'écran) si interface. -->
+<!-- Tests added or changed, command run, manual walkthrough (keyboard, screen reader) if there is a UI. -->
 
 ## Checklist
 
-- [ ] Titre de la PR au format Conventional Commits (il devient le commit de squash sur `main`)
-- [ ] Tests ajoutés ou mis à jour, `pnpm test` vert
-- [ ] Documentation à jour (`docs/`, `CHANGELOG.md` section *Unreleased*)
-- [ ] Interface : accessible au clavier, libellés, contrastes (WCAG 2.2 AA)
-- [ ] Aucun secret, aucune donnée personnelle réelle
+- [ ] PR title in Conventional Commits format (it becomes the squash commit on `main`)
+- [ ] Tests added or updated, `pnpm test` green
+- [ ] Documentation up to date (`docs/`, `CHANGELOG.md` section *Unreleased*)
+- [ ] UI: keyboard accessible, labels, contrast (WCAG 2.2 AA)
+- [ ] No secrets, no real personal data

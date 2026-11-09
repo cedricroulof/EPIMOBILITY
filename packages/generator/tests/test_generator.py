@@ -1,4 +1,4 @@
-"""Tests unitaires du générateur : reproductibilité (seed), bornes réalistes, couverture des continents, scénarios."""
+"""Generator unit tests: reproducibility (seed), realistic bounds, continent coverage, scenarios."""
 
 import generator
 

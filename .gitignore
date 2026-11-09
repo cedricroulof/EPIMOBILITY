@@ -6,10 +6,10 @@ __pycache__/
 .venv/
 .pytest_cache/
 .ruff_cache/
-# Données locales et secrets
+# Local data and secrets
 *.db
 .env
-# Éditeurs et OS
+# Editors and OS
 .idea/
 .vscode/
 .DS_Store

@@ -1,18 +1,18 @@
 ---
 name: Bug
-about: Un comportement incorrect à corriger
+about: Incorrect behavior to fix
 labels: ["bug"]
 ---
 
-## Ce qui se passe
+## What happens
 
-## Ce qui devrait se passer
+## What should happen
 
-## Reproduire
+## Reproduce
 
 1.
 2.
 
-## Contexte
+## Context
 
-<!-- Web, mobile (iOS / Android) ou API ; navigateur, version, commit. Journaux ou captures si utile. -->
+<!-- Web, mobile (iOS / Android) or API; browser, version, commit. Logs or screenshots if useful. -->

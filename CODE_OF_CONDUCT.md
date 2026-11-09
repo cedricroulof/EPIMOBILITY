@@ -1,20 +1,20 @@
-# Code de conduite
+# Code of conduct
 
-Ce projet adopte le [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/fr/version/2/1/code_of_conduct/),
-dont la traduction française officielle fait foi.
+This project adopts the [Contributor Covenant, version 2.1](https://www.contributor-covenant.org/version/2/1/code_of_conduct/),
+whose full text is authoritative.
 
-## En bref
+## In short
 
-- Nous faisons de la participation à ce projet une expérience sans harcèlement pour tout le monde, quels que soient
-  l'âge, le handicap, l'origine, l'identité ou l'expression de genre, le niveau d'expérience, la nationalité,
-  l'apparence, la religion ou l'orientation sexuelle.
-- Attendu : bienveillance, respect des avis divergents, critiques constructives portant sur le code et non sur les
-  personnes, reconnaissance de ses erreurs.
-- Inacceptable : propos ou images à caractère sexuel, insultes, attaques personnelles, harcèlement public ou privé,
-  publication d'informations privées d'autrui sans son accord.
+- We make participation in this project a harassment-free experience for everyone, regardless of
+  age, disability, origin, gender identity or expression, level of experience, nationality,
+  appearance, religion or sexual orientation.
+- Expected: kindness, respect for differing opinions, constructive criticism of the code and not of
+  people, acknowledging one's mistakes.
+- Unacceptable: sexual language or imagery, insults, personal attacks, public or private harassment,
+  publishing someone else's private information without their consent.
 
-## Signalement
+## Reporting
 
-Tout comportement inacceptable peut être signalé en privé à l'un des mainteneurs du dépôt. Les signalements sont
-traités avec discrétion et dans des délais raisonnables. Les mainteneurs peuvent retirer ou modifier tout commentaire,
-commit, issue ou contribution contraire à ce code.
+Any unacceptable behavior can be reported privately to one of the repository maintainers. Reports are
+handled discreetly and within a reasonable time. Maintainers may remove or edit any comment,
+commit, issue or contribution that goes against this code.

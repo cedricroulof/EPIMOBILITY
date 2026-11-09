@@ -1,5 +1,5 @@
-"""Connexion et tables (§4 de docs/architecture.md). Les invariants tenus par la base le restent : 5 vœux distincts
-par étudiant (clé primaire + contrainte unique), une affectation par étudiant et par run."""
+"""Connection and tables (§4 of docs/architecture.md). Invariants enforced by the database stay enforced by it:
+5 distinct wishes per student (primary key + unique constraint), one assignment per student and per run."""
 
 import os
 from datetime import UTC, datetime
@@ -13,7 +13,7 @@ SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 
 def now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)  # UTC naïf : même comportement sous SQLite et PostgreSQL
+    return datetime.now(UTC).replace(tzinfo=None)  # naive UTC: same behavior on SQLite and PostgreSQL
 
 
 def get_db():
@@ -67,7 +67,7 @@ class User(Base):
 
 class Session(Base):
     __tablename__ = "sessions"
-    token_hash: Mapped[str] = mapped_column(primary_key=True)  # jamais le jeton en clair (ADR-0005)
+    token_hash: Mapped[str] = mapped_column(primary_key=True)  # never the plain-text token (ADR-0005)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     expires_at: Mapped[datetime]
     user: Mapped[User] = relationship(lazy="joined")
@@ -75,7 +75,7 @@ class Session(Base):
 
 class RuleConfig(Base):
     __tablename__ = "rule_configs"
-    id: Mapped[str] = mapped_column(primary_key=True)  # empreinte du contenu : immuable, modifier = nouvelle ligne
+    id: Mapped[str] = mapped_column(primary_key=True)  # content hash: immutable, modifying = new row
     name: Mapped[str]
     config: Mapped[dict]
     created_at: Mapped[datetime] = mapped_column(default=now)
@@ -88,7 +88,7 @@ class Run(Base):
     algorithm: Mapped[str]
     seed: Mapped[int]
     engine_version: Mapped[str]
-    input_snapshot: Mapped[str] = mapped_column(Text)  # JSON canonique, octet pour octet : base du rejeu (ADR-0003)
+    input_snapshot: Mapped[str] = mapped_column(Text)  # canonical JSON, byte for byte: basis of the replay (ADR-0003)
     input_hash: Mapped[str]
     output_hash: Mapped[str]
     metrics: Mapped[dict]
