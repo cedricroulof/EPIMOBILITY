@@ -138,6 +138,11 @@ export default function ExploreScreen() {
           keyExtractor={p => p.id}
           contentContainerStyle={{ padding: 16 }}
           renderItem={({ item }) => <Text style={{ paddingVertical: 12, fontSize: 16 }}>{item.name}</Text>}
+          ListEmptyComponent={() => (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 32 }}>
+              <Text style={{ fontSize: 16, color: '#888' }}>No results found</Text>
+            </View>
+          )}
         />
       )}
     </View>
