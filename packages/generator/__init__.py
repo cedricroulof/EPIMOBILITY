@@ -1,9 +1,9 @@
-"""Génération reproductible (seed) d'universités et d'étudiants fictifs, avec scénarios de tension.
+"""Reproducible (seeded) generation of fictional universities and students, with stress scenarios.
 
-Tout passe par une instance `random.Random(seed)`, jamais le module global : même seed ⇒ même jeu
-de données octet pour octet (vérifié par `dataset_hash` dans les tests et le bench).
-Les 100 universités réelles viendront d'un fichier de données sourcé ; ici elles sont synthétiques
-mais *cohérentes* : une université sélective a peu de places et des seuils élevés.
+Everything goes through a `random.Random(seed)` instance, never the global module: same seed ⇒ same dataset
+byte for byte (checked by `dataset_hash` in the tests and the benchmark).
+The 100 real universities will come from a sourced data file; here they are synthetic
+but *consistent*: a selective university has few seats and high thresholds.
 """
 
 import hashlib
@@ -13,7 +13,7 @@ import random
 from dataclasses import asdict, dataclass, field
 
 from engine.rules import english
-from engine.rules.english import CEFR  # noqa: F401  (réexport : l'indice sert d'ordinal)
+from engine.rules.english import CEFR  # noqa: F401  (re-export: the index serves as an ordinal)
 
 CONTINENTS = ["Europe", "Asie", "Afrique", "Amérique du Nord", "Amérique du Sud", "Océanie"]
 CONTINENT_WEIGHTS = [45, 20, 5, 15, 7, 8]
@@ -28,8 +28,8 @@ class University:
     capacity: int
     min_gpa: float
     min_cefr: str
-    selectivity: float  # 0..1, fictif : pilote la cohérence places/seuils et la demande
-    attributes: dict = field(default_factory=dict)  # seuils ajoutés sans code côté université (ex. min_associative)
+    selectivity: float  # 0..1, fictional: drives the seats/thresholds consistency and the demand
+    attributes: dict = field(default_factory=dict)  # university thresholds added without code (e.g. min_associative)
 
 
 @dataclass
@@ -39,8 +39,8 @@ class Student:
     english_test: str  # TOEIC | IELTS
     english_score: float
     associative: int  # 0..100
-    wishes: list  # 5 ids d'universités, ordonnés (vœu 1 en premier)
-    attributes: dict = field(default_factory=dict)  # critères ajoutés sans code (projet perso, absences…)
+    wishes: list  # 5 university ids, ordered (wish 1 first)
+    attributes: dict = field(default_factory=dict)  # criteria added without code (personal project, absences…)
 
     @property
     def english_cefr(self) -> str:
@@ -52,12 +52,12 @@ class Student:
 
 
 SCENARIOS = {
-    "nominal": "distributions réalistes, capacité totale ≈ 1,1 × effectif",
-    "oversubscribed": "60 % des étudiants concentrent leurs vœux sur les 10 universités les plus prisées",
-    "weak_english": "cohorte faible en anglais (TOEIC moyen 560) : beaucoup d'inéligibles",
-    "tight_capacity": "capacités réduites à 80 % : moins de places que d'étudiants",
-    "abundant": "capacités triplées : chacun devrait obtenir un bon vœu",
-    "ties": "tous les étudiants ont le même profil : seul le départage (tirage au sort seedé) décide",
+    "nominal": "realistic distributions, total capacity ≈ 1.1 × headcount",
+    "oversubscribed": "60% of students concentrate their wishes on the 10 most popular universities",
+    "weak_english": "cohort weak in English (average TOEIC 560): many ineligible students",
+    "tight_capacity": "capacities reduced to 80%: fewer seats than students",
+    "abundant": "capacities tripled: everyone should get a good wish",
+    "ties": "all students have the same profile: only the tie-break (seeded lottery) decides",
 }
 
 
@@ -82,9 +82,9 @@ def make_universities(n=100, seed=42):
 
 
 def generate(scenario="nominal", n_students=1000, n_unis=100, seed=42):
-    """Retourne (universités, étudiants) pour un scénario. Déterministe pour (scenario, n_students, n_unis, seed)."""
+    """Returns (universities, students) for a scenario. Deterministic for (scenario, n_students, n_unis, seed)."""
     if scenario not in SCENARIOS:
-        raise ValueError(f"scénario inconnu {scenario!r}, attendu : {sorted(SCENARIOS)}")
+        raise ValueError(f"unknown scenario {scenario!r}, expected: {sorted(SCENARIOS)}")
     unis = make_universities(n_unis, seed)
     if scenario == "tight_capacity":
         for u in unis:
@@ -95,7 +95,7 @@ def generate(scenario="nominal", n_students=1000, n_unis=100, seed=42):
 
     rng = random.Random(seed)
     ids = [u.id for u in unis]
-    popularity = [0.5 + 1.5 * u.selectivity for u in unis]  # prestige ⇒ demande
+    popularity = [0.5 + 1.5 * u.selectivity for u in unis]  # prestige ⇒ demand
     by_id = {u.id: u for u in unis}
     top10 = set(sorted(range(n_unis), key=lambda i: -popularity[i])[:10])
     hot = [w * (20 if i in top10 else 1) for i, w in enumerate(popularity)]
@@ -121,11 +121,11 @@ def generate(scenario="nominal", n_students=1000, n_unis=100, seed=42):
 
 
 def _wishes(rng, student, by_id, ids, cum_weights, k, dream=0.15):
-    """k vœux distincts, tirés selon la popularité, avec auto-sélection : un vœu où l'étudiant est inéligible
-    n'est conservé qu'avec probabilité `dream` (vœu « de rêve »). Les étudiants réels visent surtout l'accessible."""
+    """k distinct wishes, drawn by popularity, with self-selection: a wish for which the student is ineligible
+    is kept only with probability `dream` ("dream" wish). Real students mostly aim for what is within reach."""
     level = CEFR.index(student.english_cefr)
     picked = []
-    for _ in range(50):  # borne de sécurité : jamais de boucle infinie, même sur un profil très faible
+    for _ in range(50):  # safety bound: never an infinite loop, even on a very weak profile
         for x in rng.choices(ids, cum_weights=cum_weights, k=k):
             u = by_id[x]
             if x in picked or ((student.gpa < u.min_gpa or level < CEFR.index(u.min_cefr)) and rng.random() > dream):
@@ -137,9 +137,9 @@ def _wishes(rng, student, by_id, ids, cum_weights, k, dream=0.15):
 
 
 def draw_lottery(students, seed):
-    """Numéro de tirage au sort par étudiant (départage ultime, config `tie_break` clé `lottery`).
-    Tiré dans l'ordre des ids ⇒ indépendant de l'ordre des lignes ; à faire AU SNAPSHOT, avec `run.seed`, pour que le rejeu
-    relise les mêmes numéros. Ne réécrit pas un numéro déjà présent."""
+    """Lottery number per student (final tie-break, config `tie_break` key `lottery`).
+    Drawn in id order ⇒ independent of row order; to be done AT SNAPSHOT time, with `run.seed`, so that replay reads
+    the same numbers again. Does not overwrite a number already present."""
     rng = random.Random(seed)
     for s in sorted(students, key=lambda s: s.id):
         s.attributes.setdefault("lottery", round(rng.random(), 9))
@@ -147,7 +147,7 @@ def draw_lottery(students, seed):
 
 
 def snapshot(unis, students) -> str:
-    """Sérialisation canonique du jeu d'entrée : c'est ce que l'API stocke dans un run pour le rejeu."""
+    """Canonical serialization of the input dataset: this is what the API stores in a run for replay."""
     return json.dumps(
         {"universities": [asdict(u) for u in unis], "students": [asdict(s) for s in students]},
         sort_keys=True,

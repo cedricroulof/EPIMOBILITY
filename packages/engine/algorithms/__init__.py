@@ -1,9 +1,9 @@
-"""Algorithmes d'affectation, tous sur la même instance pré-calculée (`Problem`).
+"""Matching algorithms, all running on the same precomputed instance (`Problem`).
 
-gale_shapley.py : algorithme de publication, stable
-boston.py       : point de comparaison, instable (ADR-0006)
-stability.py    : vérification automatique de stabilité et invariants, indépendante des algorithmes
-metrics.py      : comparatif chiffré et explication par étudiant
+gale_shapley.py: publication algorithm, stable
+boston.py:       comparison point, unstable (ADR-0006)
+stability.py:    automatic stability and invariant checks, independent of the algorithms
+metrics.py:      numeric comparison and per-student explanation
 """
 
 from .boston import boston

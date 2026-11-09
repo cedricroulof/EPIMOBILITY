@@ -1,7 +1,7 @@
 {
   "name": "epi-mobility",
   "private": true,
-  "description": "Plateforme de mobilité internationale (projet pédagogique : partenariats fictifs)",
+  "description": "International mobility platform (educational project: fictional partnerships)",
   "packageManager": "pnpm@9.14.2",
   "scripts": {
     "dev": "docker compose up --build",

@@ -1,4 +1,4 @@
-# Contexte de build : la racine du dépôt (voir docker-compose.yml), l'API dépend de packages/engine et packages/generator.
+# Build context: the repository root (see docker-compose.yml), the API depends on packages/engine and packages/generator.
 FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /bin/uv
 WORKDIR /srv

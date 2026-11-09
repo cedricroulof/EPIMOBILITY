@@ -1,12 +1,13 @@
-"""Moteur d'affectation : module pur (aucune I/O, aucune dépendance) — testable et benchable sans base de données.
+"""Matching engine: pure module (no I/O, no dependencies), testable and benchmarkable without a database.
 
-rules/       → configuration JSON interprétée : pondérations, seuils éliminatoires, bonus, départage ;
-               english.py : échelle d'anglais commune (bandes CEFR), sourcée
-algorithms/  → Gale-Shapley et Boston sur un prétraitement commun, vérification de stabilité, comparatif, explications
-benchmark/   → banc d'essai : temps par algorithme de 1 000 à 50 000 étudiants, 68 vérifications
-Les données d'entrée (universités, étudiants fictifs, seed) viennent de `packages/generator`.
+rules/       → interpreted JSON configuration: weights, eliminatory thresholds, bonuses, tie-break;
+               english.py: common English scale (CEFR bands), with its sources
+algorithms/  → Gale-Shapley and Boston on shared preprocessing, stability check, comparison, explanations
+benchmark/   → benchmark: per-algorithm times from 1,000 to 50,000 students, 68 checks
+Input data (universities, fictional students, seed) comes from `packages/generator`.
 
-ENGINE_VERSION est stocké dans chaque run : un rejeu `identical: false` après mise à jour du moteur s'explique par ce champ.
+ENGINE_VERSION is stored in each run: a replay with `identical: false` after an engine update is explained by this
+field.
 """
 
 ENGINE_VERSION = "1.0.0"

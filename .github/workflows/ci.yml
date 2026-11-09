@@ -1,6 +1,6 @@
 name: CI
 
-# Chaque PR : conventions, lint, tests, build. Toutes ces vérifications sont obligatoires sur main (CONTRIBUTING.md).
+# Every PR: conventions, lint, tests, build. All of these checks are required on main (CONTRIBUTING.md).
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
@@ -20,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
-      # Même hook et même version qu'en local (.pre-commit-config.yaml) : une seule source de vérité.
+      # Same hook and same version as locally (.pre-commit-config.yaml): a single source of truth.
       - name: Check every commit of the PR, then the PR title (it becomes the squash commit on main)
         env:
           RANGE: ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
@@ -63,7 +63,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --frozen
-      # Construit l'image de production et démarre la plateforme comme un nouvel arrivant : une commande.
+      # Builds the production image and starts the platform the way a newcomer would: one command.
       - run: docker compose up --build --detach --wait
       - run: uv run pytest apps/api/tests/e2e -s
         env:

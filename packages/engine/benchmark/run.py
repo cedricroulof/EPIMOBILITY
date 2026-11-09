@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Banc d'essai du moteur : scénarios × algorithmes, invariants, stabilité, rejeu, montée en charge.
+"""Engine benchmark: scenarios × algorithms, invariants, stability, replay, scaling.
 
-    pnpm bench                                                   # rapport écrit dans docs/technical/benchmark-results.md
-    uv run python packages/engine/benchmark/run.py --out /tmp/r.md  # autre destination
+    pnpm bench                                                   # report written to docs/technical/benchmark-results.md
+    uv run python packages/engine/benchmark/run.py --out /tmp/r.md  # other destination
 
-Code de sortie 1 si une vérification de justesse échoue.
+Exit code 1 if a correctness check fails.
 """
 
 import copy
@@ -23,7 +23,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 ALGOS = list(algorithms.ALGORITHMS)
 REPEAT = 5
-BUDGET_MS = 500  # budget pour tout le calcul d'un run 1 000 × 100 dans la requête HTTP (ADR-0004)
+BUDGET_MS = 500  # budget for the whole computation of a 1,000 × 100 run inside the HTTP request (ADR-0004)
 
 
 def med(fn, repeat=REPEAT):
@@ -47,17 +47,18 @@ def main(out_path):
     def check(name, ok, detail=""):
         checks.append((name, bool(ok), detail))
 
-    # ── 1. Comparatif par scénario ─────────────────────────────────────────────
+    # ── 1. Comparison by scenario ──────────────────────────────────────────────
     md += [
-        "## 1. Comparatif par scénario (1 000 étudiants × 100 universités, seed 42)",
+        "## 1. Comparison by scenario (1,000 students × 100 universities, seed 42)",
         "",
-        "| Scénario | Algorithme | 1er vœu | Non affectés | Rang moyen | Paires bloquantes | Taux de remplissage | Préparation | Affectation | Détection paires bloquantes |",
+        "| Scenario | Algorithm | 1st wish | Unassigned | Average rank | Blocking pairs | Fill rate | Preparation "
+        "| Assignment | Blocking pair detection |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     summaries = {}
     cfg_ov = copy.deepcopy(
         cfg
-    )  # variante : les 15 universités les plus disputées (candidats éligibles / places) pondèrent l'anglais à 60 %
+    )  # variant: the 15 most contested universities (eligible applicants / seats) weight English at 60%
     unis0, st0 = generator.generate("nominal")
     generator.draw_lottery(st0, 42)
     p0 = algorithms.Problem(unis0, st0, cfg)
@@ -72,7 +73,7 @@ def main(out_path):
     cases = [(sc, sc, cfg) for sc in generator.SCENARIOS] + [("nominal + overrides", "nominal", cfg_ov)]
     for sc, data_sc, config in cases:
         unis, students = generator.generate(data_sc)
-        generator.draw_lottery(students, 42)  # comme le fera l'API au snapshot, avec run.seed
+        generator.draw_lottery(students, 42)  # as the API will do at snapshot time, with run.seed
         p, t_prep = med(lambda: algorithms.Problem(unis, students, config))
         for algo in ALGOS:
             res, t_match = med(lambda: algorithms.ALGORITHMS[algo](p))
@@ -81,54 +82,54 @@ def main(out_path):
             summaries[(sc, algo)] = summ
             md.append(
                 f"| {sc} | {algo} | {summ['pct_first']} % | {summ['pct_unassigned']} % | {summ['mean_rank']} | "
-                f"{summ['blocking_pairs']} | {summ['fill_rate']} % | {t_prep:.1f} ms | {t_match:.1f} ms | {t_stab:.1f} ms |"
+                f"{summ['blocking_pairs']} | {summ['fill_rate']} % | {t_prep:.1f} ms | {t_match:.1f} ms | "
+                f"{t_stab:.1f} ms |"
             )
             check(
-                f"{sc}/{algo} : invariants (vœux, éligibilité, capacités)",
+                f"{sc}/{algo}: invariants (wishes, eligibility, capacities)",
                 not summ["violations"],
                 "; ".join(summ["violations"][:3]),
             )
-            check(
-                f"{sc}/{algo} : explications cohérentes avec les planchers", not metrics.explanation_violations(res, p)
-            )
+            check(f"{sc}/{algo}: explanations consistent with the cutoffs", not metrics.explanation_violations(res, p))
             if algo == "gale_shapley":
                 check(
-                    f"{sc}/gale_shapley : 0 paire bloquante (stabilité)",
+                    f"{sc}/gale_shapley: 0 blocking pairs (stability)",
                     summ["blocking_pairs"] == 0,
                     str(summ["blocking_pairs"]),
                 )
                 check(
-                    f"{sc}/gale_shapley : budget {BUDGET_MS} ms (préparation + affectation + vérification)",
+                    f"{sc}/gale_shapley: budget {BUDGET_MS} ms (preparation + assignment + check)",
                     t_prep + t_match + t_stab < BUDGET_MS,
                     f"{t_prep + t_match + t_stab:.0f} ms",
                 )
         gs, bo = summaries[(sc, "gale_shapley")], summaries[(sc, "boston")]
         check(
-            f"{sc} : Boston sert au moins autant de 1ers vœux que Gale-Shapley (propriété théorique)",
+            f"{sc}: Boston serves at least as many 1st wishes as Gale-Shapley (theoretical property)",
             bo["pct_first"] >= gs["pct_first"],
             f"boston {bo['pct_first']} vs GS {gs['pct_first']}",
         )
     md += [
         "",
-        "Lecture : Boston maximise les premiers vœux mais crée des paires bloquantes (un étudiant et une université "
-        "qui se préféreraient mutuellement à leur affectation). Gale-Shapley n'en crée jamais, au prix de quelques premiers vœux.",
+        "How to read this: Boston maximizes first wishes but creates blocking pairs (a student and a university "
+        "that would prefer each other to their assignment). Gale-Shapley never creates any, at the cost of a few "
+        "first wishes.",
         "",
     ]
     check(
-        "Le vérificateur de stabilité détecte bien l'instabilité (Boston > 0 paires sur au moins un scénario)",
+        "The stability checker does detect instability (Boston > 0 pairs on at least one scenario)",
         any(summaries[(sc, "boston")]["blocking_pairs"] > 0 for sc in generator.SCENARIOS),
     )
     check(
-        "Pondérations par université (overrides) : Gale-Shapley reste stable et le classement diffère entre universités",
+        "Per-university weights (overrides): Gale-Shapley stays stable and the ranking differs between universities",
         summaries[("nominal + overrides", "gale_shapley")]["blocking_pairs"] == 0
         and summaries[("nominal + overrides", "gale_shapley")]["pct_first"]
         != summaries[("nominal", "gale_shapley")]["pct_first"],
     )
 
     md += [
-        "### Répartition des rangs obtenus (scénario nominal)",
+        "### Distribution of obtained ranks (nominal scenario)",
         "",
-        "| Algorithme | " + " | ".join(f"Vœu {r}" for r in range(1, 6)) + " | Non affecté |",
+        "| Algorithm | " + " | ".join(f"Wish {r}" for r in range(1, 6)) + " | Unassigned |",
         "|---|" + "---:|" * 6,
     ]
     for algo in ALGOS:
@@ -140,30 +141,30 @@ def main(out_path):
         )
     md.append("")
 
-    # ── 2. Reproductibilité, rejeu, déterminisme, règles ─────────────────────
+    # ── 2. Reproducibility, replay, determinism, rules ───────────────────────
     unis, students = generator.generate("nominal")
     generator.draw_lottery(students, 42)
     h1, h2, h3 = (generator.dataset_hash(*generator.generate("nominal", seed=s)) for s in (42, 42, 43))
-    check("Générateur : même seed ⇒ jeu de données identique (hash)", h1 == h2, h1)
-    check("Générateur : seed différent ⇒ jeu de données différent", h1 != h3, f"{h1} vs {h3}")
+    check("Generator: same seed ⇒ identical dataset (hash)", h1 == h2, h1)
+    check("Generator: different seed ⇒ different dataset", h1 != h3, f"{h1} vs {h3}")
     continents = {u.continent for u in unis}
     check(
-        "Générateur : les 6 continents habités sont couverts",
+        "Generator: the 6 inhabited continents are covered",
         continents == set(generator.CONTINENTS),
         str(sorted(continents)),
     )
     check(
-        "Générateur : 5 vœux distincts et valides pour chaque étudiant",
+        "Generator: 5 distinct and valid wishes for each student",
         all(len(set(s.wishes)) == 5 and set(s.wishes) <= {u.id for u in unis} for s in students),
     )
     snap_kb = len(generator.snapshot(unis, students).encode()) / 1024
-    check("Snapshot d'entrée d'un run (stocké en JSONB pour le rejeu) < 1 Mo", snap_kb < 1024, f"{snap_kb:.0f} Ko")
+    check("Input snapshot of a run (stored as JSONB for replay) < 1 MB", snap_kb < 1024, f"{snap_kb:.0f} KB")
 
     for algo in ALGOS:
         r1, _ = run(unis, students, cfg, algo)
         r2, _ = run(unis, students, cfg, algo)
         check(
-            f"Rejeu/{algo} : même snapshot + même config ⇒ affectation identique",
+            f"Replay/{algo}: same snapshot + same config ⇒ identical assignment",
             r1.output_hash() == r2.output_hash(),
             r1.output_hash(),
         )
@@ -172,7 +173,7 @@ def main(out_path):
         rng.shuffle(su), rng.shuffle(ss)
         r3, _ = run(su, ss, cfg, algo)
         check(
-            f"Déterminisme/{algo} : ordre des lignes en entrée mélangé ⇒ même affectation",
+            f"Determinism/{algo}: shuffled input row order ⇒ same assignment",
             r1.output_hash() == r3.output_hash(),
         )
 
@@ -181,15 +182,15 @@ def main(out_path):
     r_a, _ = run(unis, students, cfg, "gale_shapley")
     r_b, _ = run(unis, students, cfg2, "gale_shapley")
     check(
-        "Versionnage : modifier un poids ⇒ nouvel identifiant de configuration",
+        "Versioning: changing a weight ⇒ new configuration id",
         rules.config_id(cfg) != rules.config_id(cfg2),
         f"{rules.config_id(cfg)} → {rules.config_id(cfg2)}",
     )
     moved = sum(r_a.assignment[s] != r_b.assignment[s] for s in r_a.assignment)
     check(
-        "Mode « et si » : la nouvelle pondération change réellement des affectations",
+        "What-if mode: the new weights really change assignments",
         moved > 0,
-        f"{moved} étudiants déplacés",
+        f"{moved} students moved",
     )
 
     cfg3 = copy.deepcopy(cfg)
@@ -204,15 +205,16 @@ def main(out_path):
     r_c, p_c = run(unis, st3, cfg3, "gale_shapley")
     moved3 = sum(r_a.assignment[s] != r_c.assignment[s] for s in r_a.assignment)
     check(
-        "Nouveau critère sans code : bonus « projet perso » + malus « absences » ajoutés par config seule, affectation modifiée, toujours stable",
+        'New criterion without code: "personal project" bonus + "absences" penalty added by config alone, '
+        "assignment changed, still stable",
         moved3 > 0 and not metrics.blocking_pairs(r_c, p_c),
-        f"{moved3} étudiants déplacés",
+        f"{moved3} students moved",
     )
 
     try:
         rules.validate(
             {
-                "criteria": [{"key": "gpaa", "weight": "lourd", "min": 4, "max": 0}],
+                "criteria": [{"key": "gpaa", "weight": "heavy", "min": 4, "max": 0}],
                 "eliminatory": [
                     {"key": "gpa", "op": "~"},
                     {"key": "english_cefr", "op": ">=", "value": "Z9"},
@@ -223,29 +225,31 @@ def main(out_path):
             university_keys=set(),
         )
         check(
-            "Validation : une configuration invalide est rejetée avec toutes ses erreurs (types, opérateurs, clés inconnues, niveau CEFR)",
+            "Validation: an invalid configuration is rejected with all its errors "
+            "(types, operators, unknown keys, CEFR level)",
             False,
         )
     except ValueError as e:
         check(
-            "Validation : une configuration invalide est rejetée avec toutes ses erreurs (types, opérateurs, clés inconnues, niveau CEFR)",
+            "Validation: an invalid configuration is rejected with all its errors "
+            "(types, operators, unknown keys, CEFR level)",
             str(e).count(";") >= 5,
-            f"{str(e).count(';') + 1} erreurs listées",
+            f"{str(e).count(';') + 1} errors listed",
         )
     cfg4 = copy.deepcopy(cfg)
     cfg4["eliminatory"][1] = {"key": "english_cefr", "op": ">=", "value": "C1"}
     r_d, p_d = run(unis, students, cfg4, "gale_shapley")
     check(
-        "Seuil CEFR en constante (« C1 ») : accepté, appliqué, affectation stable",
+        'CEFR threshold as a constant ("C1"): accepted, applied, stable assignment',
         not metrics.blocking_pairs(r_d, p_d)
         and sum(1 for s in students if p_d.eligible[s.id]) < sum(1 for s in students if p_c.eligible[s.id]),
     )
 
-    # ── 3. Montée en charge ────────────────────────────────────────────────────
+    # ── 3. Scaling ─────────────────────────────────────────────────────────────
     md += [
-        "## 2. Montée en charge (marge au-delà du besoin : 1 000 × 100)",
+        "## 2. Scaling (margin beyond the requirement: 1,000 × 100)",
         "",
-        "| Étudiants | Universités | Algorithme | Préparation | Affectation | Détection paires bloquantes | Total |",
+        "| Students | Universities | Algorithm | Preparation | Assignment | Blocking pair detection | Total |",
         "|---:|---:|---|---:|---:|---:|---:|",
     ]
     for n_s, n_u in ((1_000, 100), (10_000, 1_000), (50_000, 1_000)):
@@ -256,33 +260,35 @@ def main(out_path):
             res, t_match = med(lambda: algorithms.ALGORITHMS[algo](p), repeat=1 if n_s > 1000 else REPEAT)
             bp, t_stab = med(lambda: metrics.blocking_pairs(res, p), repeat=1)
             md.append(
-                f"| {n_s:,} | {n_u:,} | {algo} | {t_prep:.0f} ms | {t_match:.0f} ms | {t_stab:.0f} ms | {t_prep + t_match + t_stab:.0f} ms |".replace(
-                    ",", " "
-                )
+                (
+                    f"| {n_s:,} | {n_u:,} | {algo} | {t_prep:.0f} ms | {t_match:.0f} ms | {t_stab:.0f} ms | "
+                    f"{t_prep + t_match + t_stab:.0f} ms |"
+                ).replace(",", " ")
             )
             if algo == "gale_shapley":
-                check(f"Échelle {n_s}×{n_u} : Gale-Shapley reste stable", not bp)
+                check(f"Scale {n_s}×{n_u}: Gale-Shapley stays stable", not bp)
     md.append("")
 
-    # ── 4. Rapport ────────────────────────────────────────────────────────────
+    # ── 4. Report ─────────────────────────────────────────────────────────────
     failed = [c for c in checks if not c[1]]
-    md += [f"## 3. Vérifications de justesse : {len(checks) - len(failed)}/{len(checks)} réussies", ""]
+    md += [f"## 3. Correctness checks: {len(checks) - len(failed)}/{len(checks)} passed", ""]
     md += [f"- {'✅' if ok else '❌'} {name}" + (f" — {detail}" if detail else "") for name, ok, detail in checks]
     md += [
         "",
-        "## Environnement",
+        "## Environment",
         "",
         f"- Python {platform.python_version()}, {platform.machine()}, {platform.system()} {platform.release()}",
-        f"- Temps : médiane de {REPEAT} exécutions (1 seule exécution au-delà de 1 000 étudiants), `time.perf_counter` ; les temps varient d'une machine et d'une exécution à l'autre, seules les vérifications sont comparables entre deux rapports",
-        f"- Généré par `pnpm bench` le {time.strftime('%Y-%m-%d %H:%M')}",
+        f"- Times: median of {REPEAT} executions (only 1 execution above 1,000 students), `time.perf_counter`; "
+        "times vary from one machine and one execution to another, only the checks are comparable between two reports",
+        f"- Generated by `pnpm bench` on {time.strftime('%Y-%m-%d %H:%M')}",
         "",
     ]
-    report = "\n".join(["# Résultats du banc d'essai du moteur d'affectation", ""] + md)
+    report = "\n".join(["# Matching engine benchmark results", ""] + md)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(report, encoding="utf-8")
     print(report)
     if failed:
-        print(f"\n{len(failed)} vérification(s) en échec", file=sys.stderr)
+        print(f"\n{len(failed)} check(s) failed", file=sys.stderr)
         return 1
     return 0
 

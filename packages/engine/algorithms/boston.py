@@ -1,5 +1,5 @@
-"""Boston : acceptation immédiate, vœu par vœu. Maximise le nombre de 1ers vœux servis, mais instable et manipulable.
-Point de comparaison « intuitif » (ADR-0006) ; non publiable."""
+"""Boston: immediate acceptance, wish by wish. Maximizes the number of 1st wishes served, but unstable and manipulable.
+"Intuitive" comparison point (ADR-0006); not publishable."""
 
 from collections import defaultdict
 
@@ -21,10 +21,10 @@ def boston(p: Problem) -> Result:
             for s in lst[:seats]:
                 assignment[s] = u
             filled[u] += min(seats, len(lst))
-            if seats > 0:  # plancher de ce tour = dernier admis du tour ; plancher final = plus bas admis tous tours
+            if seats > 0:  # this round's cutoff = last admitted in it; final cutoff = lowest admitted across all rounds
                 last = p.score[(lst[min(seats, len(lst)) - 1], u)]
                 round_cutoff[(u, rnd)] = last
                 cutoff[u] = min(cutoff.get(u, last), last)
             else:
-                round_cutoff[(u, rnd)] = None  # déjà complet avant ce tour
+                round_cutoff[(u, rnd)] = None  # already full before this round
     return Result("boston", assignment, cutoff, round_cutoff)

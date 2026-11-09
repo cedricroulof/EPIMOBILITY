@@ -1,18 +1,18 @@
 ---
-name: Tâche
-about: Une fonctionnalité ou un travail à réaliser (une issue = une PR)
+name: Task
+about: A feature or a piece of work to carry out (one issue = one PR)
 labels: ["enhancement"]
 ---
 
-## Objectif
+## Goal
 
-<!-- Ce qui doit exister à la fin, du point de vue de l'utilisateur ou du développeur. -->
+<!-- What must exist at the end, from the user's or developer's point of view. -->
 
-## Critères d'acceptation
+## Acceptance criteria
 
 - [ ]
 - [ ]
 
 ## Notes
 
-<!-- Liens utiles : section du sujet, ADR, maquette, issue liée. -->
+<!-- Useful links: project brief section, ADR, mockup, related issue. -->

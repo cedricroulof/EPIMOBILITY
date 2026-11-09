@@ -1,4 +1,4 @@
-"""Tests unitaires du moteur : règles, algorithmes, vérification automatique de stabilité, rejeu, empreintes de référence."""
+"""Engine unit tests: rules, algorithms, automatic stability checks, replay, golden hashes."""
 
 import copy
 import random
@@ -24,7 +24,7 @@ def uni(id, cap=1, min_gpa=0.0, min_cefr="A1"):
     return generator.University(id, id, "Europe", cap, min_gpa, min_cefr, 0.5)
 
 
-# ── moteur de règles ──────────────────────────────────────────────────────────
+# ── rule engine ───────────────────────────────────────────────────────────────
 def test_validate_rejects_bad_config():
     try:
         rules.validate(
@@ -34,25 +34,29 @@ def test_validate_rejects_bad_config():
             }
         )
     except ValueError as e:
-        assert "weight" in str(e) and "min" in str(e) and "op inconnu" in str(e) and "exactement un" in str(e)
+        assert "weight" in str(e) and "min" in str(e) and "unknown op" in str(e) and "exactly one" in str(e)
     else:
-        raise AssertionError("config invalide acceptée")
+        raise AssertionError("invalid config accepted")
     cfg = copy.deepcopy(CFG)
-    cfg["criteria"][0]["key"] = "gpaa"  # faute de frappe
+    cfg["criteria"][0]["key"] = "gpaa"  # typo
     cfg["eliminatory"][1] = {"key": "english_cefr", "op": ">=", "value": "Z9"}
     cfg["eliminatory"].append({"key": "gpa", "op": ">=", "ref": "min_associative"})
     try:
         rules.validate(cfg, student_keys=set(), university_keys=set())
     except ValueError as e:
-        assert "'gpaa' inconnue" in str(e) and "Z9" in str(e) and "'min_associative' inconnu" in str(e)
+        assert (
+            "unknown key 'gpaa'" in str(e)
+            and "Z9" in str(e)
+            and "unknown university attribute 'min_associative'" in str(e)
+        )
     else:
-        raise AssertionError("clés inconnues acceptées")
-    try:  # la même erreur est attrapée au run, contre les données réelles
+        raise AssertionError("unknown keys accepted")
+    try:  # the same error is caught at run time, against the real data
         algorithms.Problem([uni("U0")], [mk("S1")], cfg)
     except ValueError:
         pass
     else:
-        raise AssertionError("Problem a accepté des clés inconnues")
+        raise AssertionError("Problem accepted unknown keys")
 
 
 def test_eliminatory_threshold_blocks_and_explains():
@@ -71,13 +75,13 @@ def test_score_weights_and_bonus():
     assert rules.score(s, CFG) == 100.0
     cfg = copy.deepcopy(CFG)
     cfg["bonuses"].append({"key": "personal_project", "op": "==", "value": True, "points": 7})
-    assert rules.score(s, cfg) == 100.0  # attribut absent ⇒ pas de bonus
+    assert rules.score(s, cfg) == 100.0  # missing attribute ⇒ no bonus
     s.attributes["personal_project"] = True
     assert rules.score(s, cfg) == 107.0
 
 
 def test_new_criterion_without_code_changes_outcome():
-    """Un critère « absences » (malus) ajouté par configuration seule inverse une affectation."""
+    """An "absences" criterion (penalty) added by configuration alone reverses an assignment."""
     u = uni("U0", cap=1)
     strong, weak = mk("S1", gpa=3.8, wishes=("U0",), absences=15), mk("S2", gpa=3.6, wishes=("U0",), absences=0)
     res, _ = solve([u], [strong, weak])
@@ -92,10 +96,10 @@ def test_tie_break_is_total_and_configurable():
     u = uni("U0", cap=1)
     a, b = mk("S1", gpa=3.0, toeic=700, assoc=50), mk("S2", gpa=3.0, toeic=700, assoc=50)
     res, _ = solve([u], [b, a])
-    assert res.assignment["S1"] == "U0"  # dernier départage : id croissant, quel que soit l'ordre d'entrée
+    assert res.assignment["S1"] == "U0"  # final tie-break: ascending id, whatever the input order
     cfg = copy.deepcopy(CFG)
     cfg["tie_break"] = [{"key": "associative", "order": "desc"}]
-    b.associative = 60  # score identique après arrondi ? non : associatif pèse 0.2 ⇒ on neutralise le poids
+    b.associative = 60  # identical score after rounding? no: associative weighs 0.2 ⇒ neutralize its weight
     cfg["criteria"] = [{"key": "gpa", "weight": 1, "min": 0, "max": 4}]
     res, _ = solve([u], [a, b], cfg)
     assert res.assignment["S2"] == "U0"
@@ -108,7 +112,7 @@ def test_config_id_tracks_content():
     assert rules.config_id(cfg) != rules.config_id(CFG)
 
 
-# ── algorithmes ───────────────────────────────────────────────────────────────
+# ── algorithms ────────────────────────────────────────────────────────────────
 def test_gale_shapley_stable_on_all_scenarios():
     for sc in generator.SCENARIOS:
         unis, students = generator.generate(sc, n_students=300, n_unis=40)
@@ -119,17 +123,17 @@ def test_gale_shapley_stable_on_all_scenarios():
 
 
 def test_boston_respects_invariants_but_is_unstable():
-    unis, students = generator.generate("tight_capacity")  # pleine échelle : la tension révèle l'instabilité
+    unis, students = generator.generate("tight_capacity")  # full scale: the stress reveals the instability
     res, p = solve(unis, students, algo="boston")
     assert metrics.violations(res, p) == []
     assert metrics.explanation_violations(res, p) == []
-    assert len(metrics.blocking_pairs(res, p)) > 0  # le vérificateur voit bien l'instabilité
+    assert len(metrics.blocking_pairs(res, p)) > 0  # the checker does see the instability
     gs, _ = solve(unis, students)
     assert metrics.summarize(res, p)["pct_first"] >= metrics.summarize(gs, p)["pct_first"]
 
 
 def test_blocking_pair_detector_on_handmade_instance():
-    """Instance minimale : S1 préfère U1 à U0 et U1 préfère S1 à S2 ⇒ (S1, U1) bloque si on les sépare."""
+    """Minimal instance: S1 prefers U1 to U0 and U1 prefers S1 to S2 ⇒ (S1, U1) blocks if they are separated."""
     u0, u1 = uni("U0"), uni("U1")
     s1, s2 = mk("S1", gpa=3.9, wishes=("U1", "U0")), mk("S2", gpa=3.0, wishes=("U1", "U0"))
     p = algorithms.Problem([u0, u1], [s1, s2], CFG)
@@ -146,7 +150,7 @@ def test_capacity_and_zero_capacity():
         res, p = solve([u0, u1], students, algo=algo)
         assert metrics.violations(res, p) == []
         assert sorted(v for v in res.assignment.values() if v) == ["U1", "U1"]
-        assert res.assignment["S0"] is None  # le moins bon score reste sans place
+        assert res.assignment["S0"] is None  # the lowest score ends up with no seat
 
 
 def test_replay_and_order_independence():
@@ -173,11 +177,11 @@ def test_explanation_answers_why_not_previous_wish():
             assert e["cutoff"] is not None and e["score"] <= e["cutoff"]
 
 
-# ── corrections issues de la relecture ────────────────────────────────────────
+# ── fixes from the review ─────────────────────────────────────────────────────
 def test_english_scale_is_equitable_between_tests():
-    assert english.pct("TOEIC", 945) == english.pct("IELTS", 7.0) == 80.0  # début de C1 dans les deux tests
-    assert english.pct("TOEIC", 785) == english.pct("IELTS", 5.5) == 60.0  # début de B2
-    assert english.cefr("TOEIC", 990) == "C1" and english.pct("TOEIC", 990) == 100.0  # le TOEIC n'atteste pas le C2
+    assert english.pct("TOEIC", 945) == english.pct("IELTS", 7.0) == 80.0  # start of C1 in both tests
+    assert english.pct("TOEIC", 785) == english.pct("IELTS", 5.5) == 60.0  # start of B2
+    assert english.cefr("TOEIC", 990) == "C1" and english.pct("TOEIC", 990) == 100.0  # the TOEIC does not certify C2
     assert english.cefr("IELTS", 9.0) == "C2" and english.pct("IELTS", 9.0) == 100.0
     assert english.pct("TOEIC", 10) == 0.0 and english.cefr("TOEIC", 100) == "A1"
     pts = [english.pct("TOEIC", x) for x in range(10, 991, 5)]
@@ -202,7 +206,7 @@ def test_university_attribute_threshold_without_code():
     res, p = solve([u_strict, u_free], [s], cfg)
     assert (
         p.reasons[("S1", "U0")][0]["ref"] == "min_associative" and p.reasons[("S1", "U1")] == []
-    )  # U1 n'a pas ce seuil
+    )  # U1 has no such threshold
     assert res.assignment["S1"] == "U1"
 
 
@@ -221,7 +225,7 @@ def test_overrides_make_universities_rank_differently():
 
 
 def test_lottery_tie_break_is_seeded_and_order_independent():
-    a, b = mk("S1"), mk("S2")  # profils identiques
+    a, b = mk("S1"), mk("S2")  # identical profiles
     generator.draw_lottery([b, a], seed=5)
     assert a.attributes["lottery"] != b.attributes["lottery"]
     c, d = mk("S1"), mk("S2")
@@ -237,23 +241,23 @@ def test_input_validation():
         try:
             algorithms.Problem([uni("U0")], bad, CFG)
         except ValueError as e:
-            assert "entrées invalides" in str(e)
+            assert "invalid inputs" in str(e)
         else:
-            raise AssertionError("entrées invalides acceptées")
+            raise AssertionError("invalid inputs accepted")
     res, p = solve([uni("U0", cap=0)], [mk("S1")])
     assert metrics.summarize(res, p)["fill_rate"] is None and res.assignment["S1"] is None
 
 
 def test_config_id_ignores_name_and_number_type():
     a, b = copy.deepcopy(CFG), copy.deepcopy(CFG)
-    b["name"], b["criteria"][0]["weight"] = "autre nom", 0.5  # 0.5 déjà ; on force int/float ailleurs
+    b["name"], b["criteria"][0]["weight"] = "other name", 0.5  # already 0.5; int/float is forced elsewhere
     b["criteria"][0]["min"] = 0.0
     assert rules.config_id(a) == rules.config_id(b)
 
 
 def test_golden_hashes_pin_engine_behaviour():
-    """Empreintes de référence : si elles changent, le moteur a changé de comportement ⇒ incrémenter ENGINE_VERSION,
-    mettre à jour ces valeurs, et savoir que les anciens runs ne se rejoueront plus à l'identique."""
+    """Golden hashes: if they change, the engine's behavior has changed ⇒ increment ENGINE_VERSION, update these values,
+    and know that old runs will no longer replay identically."""
     from engine import ENGINE_VERSION
 
     unis, students = generator.generate("nominal")

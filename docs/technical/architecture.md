@@ -1,158 +1,158 @@
-# Architecture backend — Plateforme de mobilité internationale
+# Backend architecture — International mobility platform
 
-> Périmètre : tout ce qui est derrière l'API. Le site web et l'application mobile sont deux clients de cette API.
-> Le moteur d'affectation est **implémenté, testé et mesuré** (`packages/engine`, `packages/generator`, `benchmark-results.md`) ;
-> l'API existe en preuve de concept (`apps/api`, voir `testing.md`) ; la base et le déploiement sont spécifiés pour être construits tels quels.
-> Ce document a été relu par un développeur extérieur ; ses remarques sont intégrées, et les questions qui restent
-> ouvertes sont listées en §14. Stack retenue : Python, FastAPI, PostgreSQL (ADR-0001, accepté).
+> Scope: everything behind the API. The website and the mobile app are two clients of this API.
+> The matching engine is **implemented, tested and measured** (`packages/engine`, `packages/generator`, `benchmark-results.md`);
+> the API exists as a proof of concept (`apps/api`, see `testing.md`); the database and the deployment are specified so they can be built as is.
+> This document was reviewed by an outside developer; their remarks are incorporated, and the questions that remain
+> open are listed in §14. Chosen stack: Python, FastAPI, PostgreSQL (ADR-0001, accepted).
 
-## 1. Ce que le sujet impose au backend, et la réponse retenue
+## 1. What the project brief requires of the backend, and the chosen response
 
-| Exigence du sujet | Réponse | Section |
+| Brief requirement | Response | Section |
 |---|---|---|
-| Règles modifiables par l'administration sans développeur ; nouveau critère sans toucher au code | Configuration JSON interprétée (poids, seuils éliminatoires, bonus/malus, départage, pondérations par université) ; attributs libres sur l'étudiant et sur l'université | §5, ADR-0002 |
-| Configurations versionnées, rejeu d'une affectation à l'identique | Configurations immuables identifiées par l'empreinte de leur contenu ; chaque run conserve le snapshot exact de ses entrées, sa graine et la version du moteur | §6, ADR-0003 |
-| ≥ 2 algorithmes dont Gale-Shapley ; comparatif chiffré ; stabilité vérifiée | Gale-Shapley (acceptation différée) + Boston (acceptation immédiate) ; métriques et détecteur de paires bloquantes indépendants des algorithmes | §5.3, ADR-0006 |
-| Résultat expliqué : « pourquoi ce vœu-là et pas le précédent » | Explication structurée par vœu, calculée pendant le run, vérifiée, stockée avec l'affectation | §5.4 |
-| Mode « et si » : deux configurations côte à côte | Deux runs, comparés côté serveur (métriques + étudiants déplacés) | §7 |
-| Même backend pour le web et le mobile ; vœux synchronisés | Une seule API REST JSON ; les vœux n'existent que côté serveur | §7, §8 |
-| Catalogue consultable hors connexion ; notification à la publication | `ETag` sur le catalogue ; push FCM par sujet (un seul appel) | §8 |
-| Comptes étudiant/admin distincts, permissions côté serveur, OWASP Top 10 | Sessions opaques, contrôle de rôle par dépendance, routes étudiant sans identifiant, SPA servie par l'API | §9, ADR-0005 |
-| Temps de calcul mesuré pour 1 000 étudiants, par algorithme | Banc d'essai reproductible ; budget 500 ms par run, mesuré ≈ 16 ms hors base | §10, ADR-0004 |
-| Tests moteur / algorithmes / générateur en une commande ; CI/CD ; installation en une commande | `pytest` ; GitHub Actions ; Docker Compose avec jeu de démo chargé au démarrage | §11 |
-| Données réelles sourcées, photos créditées | Schéma JSON de `data/universities.json` vérifié par un test | §11 |
+| Rules the administration can change without a developer; new criterion without touching the code | Interpreted JSON configuration (weights, eliminatory thresholds, bonuses/penalties, tie-break, per-university weights); free-form attributes on the student and on the university | §5, ADR-0002 |
+| Versioned configurations, identical replay of an assignment | Immutable configurations identified by the hash of their content; each run keeps the exact snapshot of its inputs, its seed and the engine version | §6, ADR-0003 |
+| ≥ 2 algorithms including Gale-Shapley; quantified comparison; verified stability | Gale-Shapley (deferred acceptance) + Boston (immediate acceptance); metrics and blocking pair detector independent of the algorithms | §5.3, ADR-0006 |
+| Explained result: "why this wish and not the previous one" | Structured per-wish explanation, computed during the run, verified, stored with the assignment | §5.4 |
+| What-if mode: two configurations side by side | Two runs, compared server-side (metrics + students moved) | §7 |
+| Same backend for web and mobile; synchronized wishes | A single JSON REST API; wishes exist only server-side | §7, §8 |
+| Catalog viewable offline; notification at publication | `ETag` on the catalog; FCM topic push (a single call) | §8 |
+| Separate student/admin accounts, server-side permissions, OWASP Top 10 | Opaque sessions, role check through a dependency, student routes without identifiers, SPA served by the API | §9, ADR-0005 |
+| Computation time measured for 1,000 students, per algorithm | Reproducible benchmark; 500 ms budget per run, measured ≈ 16 ms excluding the database | §10, ADR-0004 |
+| Engine / algorithm / generator tests in one command; CI/CD; one-command installation | `pytest`; GitHub Actions; Docker Compose with demo dataset loaded at startup | §11 |
+| Real, sourced data, credited photos | JSON schema of `data/universities.json` checked by a test | §11 |
 
-## 2. Vue d'ensemble
+## 2. Overview
 
 ```
-        Navigateur (SPA servie par l'API)        Mobile (natif)
+        Browser (SPA served by the API)          Mobile (native)
                     │        HTTPS / JSON              │
                     └───────────────┬──────────────────┘
                                     ▼
       ┌──────────────────────────────────────────┐        ┌───────────────┐
-      │ API — FastAPI (un seul déployable)       │  SQL   │ PostgreSQL 16 │
-      │  routers  → validation, auth, rôles      │◀──────▶│               │
+      │ API — FastAPI (single deployable)        │  SQL   │ PostgreSQL 16 │
+      │  routers  → validation, auth, roles      │◀──────▶│               │
       │  services → snapshot, run, publication   │        └───────────────┘
-      │  engine   → module pur, sans I/O         │──1 appel──▶ FCM (sujet « results »)
+      │  engine   → pure module, no I/O          │──1 call──▶ FCM (topic "results")
       └──────────────────────────────────────────┘
 ```
 
-Trois couches, une dépendance dans un seul sens : `routers → services → engine`.
+Three layers, dependencies in one direction only: `routers → services → engine`.
 
-- **engine** (`packages/engine`) ne connaît ni HTTP ni base : il prend (universités, étudiants, configuration) et rend (affectation, planchers, métriques, explications). Il est testable et benchable sans rien démarrer : c'est ce qui a été mesuré.
-- **services/** orchestre : charger la configuration, figer le snapshot (dont le tirage au sort), appeler le moteur, persister, publier, notifier.
-- **routers/** expose l'API : schémas Pydantic (validation aux frontières), authentification, autorisation par rôle.
+- **engine** (`packages/engine`) knows nothing about HTTP or the database: it takes (universities, students, configuration) and returns (assignment, cutoffs, metrics, explanations). It can be tested and benchmarked without starting anything: that is what was measured.
+- **services/** orchestrates: load the configuration, freeze the snapshot (including the lottery), call the engine, persist, publish, notify.
+- **routers/** exposes the API: Pydantic schemas (validation at the boundaries), authentication, role-based authorization.
 
-Pas de file de tâches, pas de cache externe, pas de second service : un run 1 000 × 100 prend ≈ 16 ms hors base (§10) et s'exécute dans la requête HTTP. La notification de publication part en tâche de fond FastAPI (un appel FCM).
+No task queue, no external cache, no second service: a 1,000 × 100 run takes ≈ 16 ms excluding the database (§10) and executes inside the HTTP request. The publication notification goes out as a FastAPI background task (one FCM call).
 
-## 3. Stack retenue
+## 3. Chosen stack
 
-| Besoin | Choix | Pourquoi (détail en ADR-0001) |
+| Need | Choice | Why (details in ADR-0001) |
 |---|---|---|
-| Langage / framework | Python 3.12 (CI et production ; le moteur tourne de 3.10 à 3.14), FastAPI, Pydantic v2 | OpenAPI généré automatiquement, validation déclarative, peu de code |
-| Base | PostgreSQL 16, SQLAlchemy 2, Alembic | JSONB pour configurations, snapshots, attributs libres ; contraintes d'intégrité en base ; migrations versionnées |
-| Mots de passe / sessions | argon2-cffi, sessions opaques en base | ADR-0005 |
-| Tests / qualité | pytest, ruff (lint + format), pre-commit | Une commande pour tout |
-| Conteneurs / CI / CD | Docker Compose, GitHub Actions, Fly.io (API, machine qui ne s'endort pas) + Neon (Postgres), offres gratuites | Déploiement à chaque merge sur `main` ; Render gratuit écarté : mise en veille ≈ 50 s, fatale en démo |
-| Push mobile | FCM HTTP v1, envoi par sujet | Un appel pour toute la cohorte, iOS et Android |
+| Language / framework | Python 3.12 (CI and production; the engine runs on 3.10 through 3.14), FastAPI, Pydantic v2 | Automatically generated OpenAPI, declarative validation, little code |
+| Database | PostgreSQL 16, SQLAlchemy 2, Alembic | JSONB for configurations, snapshots, free-form attributes; integrity constraints in the database; versioned migrations |
+| Passwords / sessions | argon2-cffi, opaque sessions in the database | ADR-0005 |
+| Tests / quality | pytest, ruff (lint + format), pre-commit | One command for everything |
+| Containers / CI / CD | Docker Compose, GitHub Actions, Fly.io (API, machine that does not go to sleep) + Neon (Postgres), free tiers | Deployment on every merge to `main`; Render's free tier ruled out: sleep mode ≈ 50 s, fatal in a demo |
+| Mobile push | FCM HTTP v1, sending by topic | One call for the whole cohort, iOS and Android |
 
-Le moteur n'utilise que la bibliothèque standard : il se teste et se mesure sans base ni serveur.
+The engine uses only the standard library: it can be tested and measured without a database or server.
 
-## 4. Modèle de données
+## 4. Data model
 
 ```
 users          id uuid PK · email unique · password_hash · role ∈ {student, admin} · created_at
 sessions       token_hash text PK · user_id→users · created_at · expires_at · user_agent        ← ADR-0005
 students       user_id PK→users · gpa numeric(3,2) · english_test ∈ {TOEIC, IELTS} · english_score numeric
-               · associative int · attributes jsonb '{}'            ← critères ajoutés sans code (projet perso, absences, lottery…)
+               · associative int · attributes jsonb '{}'            ← criteria added without code (personal project, absences, lottery…)
 universities   id text PK (slug) · name · city · country · continent · lat · lng
                · description · fields text[] · teaching_language · local_life
                · cost_of_living jsonb {housing, food, transport, monthly_total, source}
-               · photos jsonb [{url, author, license, alt}]           ← crédits obligatoires (règle d'or du sujet)
-               · capacity int · min_gpa numeric · min_cefr text       ← conditions d'accès (fictif cohérent)
-               · attributes jsonb '{}'                                ← seuils ajoutés sans code (ex. min_associative)
+               · photos jsonb [{url, author, license, alt}]           ← mandatory credits (golden rule of the project brief)
+               · capacity int · min_gpa numeric · min_cefr text       ← admission requirements (fictional but consistent)
+               · attributes jsonb '{}'                                ← thresholds added without code (e.g. min_associative)
                · stay jsonb {duration_months, period, fees} · sources jsonb [{label, url}] · updated_at
 wishes         student_id→students · rank smallint 1..5 · university_id→universities · updated_at
-               PK(student_id, rank) · UNIQUE(student_id, university_id)    ← 5 vœux ordonnés, distincts, garantis par la base
-rule_configs   id text PK = empreinte du contenu (hors `name`) · name · config jsonb · parent_id→rule_configs
-               · created_by→users · created_at                            ← IMMUABLE : modifier = créer une nouvelle ligne
+               PK(student_id, rank) · UNIQUE(student_id, university_id)    ← 5 ordered, distinct wishes, enforced by the database
+rule_configs   id text PK = content hash (excluding `name`) · name · config jsonb · parent_id→rule_configs
+               · created_by→users · created_at                            ← IMMUTABLE: modifying = creating a new row
 runs           id uuid PK · config_id→rule_configs · algorithm · seed int · engine_version text · status ∈ {done, failed} · error text
                · input_snapshot jsonb · input_hash · output_hash · metrics jsonb · duration_ms
                · created_by · created_at · published_at nullable · replay_of→runs nullable
 assignments    run_id→runs · student_id→students · university_id→universities nullable · rank smallint nullable
                · score numeric · explanation jsonb · PK(run_id, student_id)
 devices        id · user_id→users · platform ∈ {ios, android} · token text unique · created_at
-settings       key text PK · value jsonb                                   ← wishes_open (seule clé pour l'instant)
+settings       key text PK · value jsonb                                   ← wishes_open (only key for now)
 ```
 
-Dictionnaire des champs : généré depuis les modèles SQLAlchemy vers `docs/data-model.md` ; les noms ci-dessus sont ceux du moteur (`packages/generator`), pour éviter toute traduction entre couches. **Le mapping base → moteur (`services/runs.py : snapshot()`) est le vrai contrat du rejeu : il est couvert par un test qui charge le jeu de démo, construit le snapshot, et vérifie l'empreinte attendue.**
+Field dictionary: generated from the SQLAlchemy models into `docs/data-model.md`; the names above are those of the engine (`packages/generator`), to avoid any translation between layers. **The database → engine mapping (`services/runs.py : snapshot()`) is the real replay contract: it is covered by a test that loads the demo dataset, builds the snapshot, and checks the expected hash.**
 
-Règles d'intégrité portées par la base plutôt que par le code : 5 vœux au plus et distincts (clé primaire + contrainte unique), configurations immuables (aucun `UPDATE`/`DELETE` accordé au rôle applicatif sur `rule_configs`), une affectation par étudiant et par run (clé primaire composite), suppression d'étudiants impossible tant qu'un run les référence (`ON DELETE RESTRICT`).
+Integrity rules enforced by the database rather than by the code: at most 5 distinct wishes (primary key + unique constraint), immutable configurations (no `UPDATE`/`DELETE` granted to the application role on `rule_configs`), one assignment per student and per run (composite primary key), students cannot be deleted while a run references them (`ON DELETE RESTRICT`).
 
-## 5. Moteur de règles et d'affectation (`packages/engine`)
+## 5. Rules and matching engine (`packages/engine`)
 
-### 5.1 Format de configuration (exemple commenté, valide)
+### 5.1 Configuration format (valid, annotated example)
 
 ```jsonc
 {
-  "name": "Rentrée 2027 — pondération standard",      // hors empreinte : renommer ne crée pas de version
-  "criteria": [                                        // score = Σ weight × pct, pct = (valeur − min) / (max − min) × 100 borné [0, 100]
+  "name": "Fall 2027 intake — standard weights",      // not part of the hash: renaming does not create a version
+  "criteria": [                                        // score = Σ weight × pct, pct = (value − min) / (max − min) × 100 clamped to [0, 100]
     { "key": "gpa",         "weight": 0.5,  "min": 0, "max": 4 },
-    { "key": "english_pct", "weight": 0.3,  "min": 0, "max": 100 },  // échelle commune TOEIC/IELTS par bandes CEFR (ADR-0007)
+    { "key": "english_pct", "weight": 0.3,  "min": 0, "max": 100 },  // common TOEIC/IELTS scale by CEFR bands (ADR-0007)
     { "key": "associative", "weight": 0.2,  "min": 0, "max": 100 },
-    { "key": "absences",    "weight": -0.1, "min": 0, "max": 20, "default": 0 }  // poids négatif = malus ; default : attribut absent = 0
+    { "key": "absences",    "weight": -0.1, "min": 0, "max": 20, "default": 0 }  // negative weight = penalty; default: missing attribute = 0
   ],
-  "eliminatory": [                                     // tous vrais, sinon inéligible à cette université
-    { "key": "gpa",          "op": ">=", "ref": "min_gpa" },          // ref = attribut de l'université (natif ou `attributes`)
-    { "key": "english_cefr", "op": ">=", "ref": "min_cefr" },         // niveaux comparés par ordinal A1 < … < C2
-    { "key": "english_cefr", "op": ">=", "value": "B1" },             // constante : un niveau en toutes lettres est accepté
-    { "key": "absences",     "op": "<",  "value": 15, "default": 0 }  // SANS default, un étudiant sans l'attribut serait inéligible partout
+  "eliminatory": [                                     // all must be true, otherwise ineligible for this university
+    { "key": "gpa",          "op": ">=", "ref": "min_gpa" },          // ref = university attribute (built-in or `attributes`)
+    { "key": "english_cefr", "op": ">=", "ref": "min_cefr" },         // levels compared by ordinal A1 < … < C2
+    { "key": "english_cefr", "op": ">=", "value": "B1" },             // constant: a level spelled out as text is accepted
+    { "key": "absences",     "op": "<",  "value": 15, "default": 0 }  // WITHOUT default, a student without the attribute would be ineligible everywhere
   ],
-  "bonuses": [                                         // points ajoutés si la condition est vraie (négatifs = malus)
+  "bonuses": [                                         // points added if the condition is true (negative = penalty)
     { "key": "personal_project", "op": "==", "value": true, "points": 10 }
   ],
-  "overrides": {                                       // pondération propre à une université (criteria et/ou bonuses)
+  "overrides": {                                       // university-specific weights (criteria and/or bonuses)
     "U017": { "criteria": [ { "key": "english_pct", "weight": 0.7, "min": 0, "max": 100 },
                             { "key": "gpa",         "weight": 0.3, "min": 0, "max": 4 } ] }
   },
-  "tie_break": [                                       // départage à score égal ; l'id étudiant est toujours ajouté en dernier
+  "tie_break": [                                       // tie-break on equal scores; the student id is always added last
     { "key": "gpa", "order": "desc" },
     { "key": "english_pct", "order": "desc" },
-    { "key": "lottery", "order": "asc" }               // numéro de tirage au sort seedé, tiré au snapshot, montré dans l'explication
+    { "key": "lottery", "order": "asc" }               // seeded lottery number, drawn at snapshot time, shown in the explanation
   ]
 }
 ```
 
-Opérateurs : `>= <= > < == != in`. Aucune expression libre, aucun `eval`. `rules.validate(config, student_keys, university_keys)` renvoie **toutes** les erreurs d'un coup : types, opérateurs, niveaux CEFR inconnus, et **clés qui n'existent dans aucune donnée** (une faute de frappe comme `gpaa` est refusée). L'API appelle `validate` avec les clés réellement présentes en base ; `GET /admin/configs/keys` expose cette liste pour que le formulaire admin propose les bonnes clés.
+Operators: `>= <= > < == != in`. No free-form expressions, no `eval`. `rules.validate(config, student_keys, university_keys)` returns **all** errors at once: types, operators, unknown CEFR levels, and **keys that do not exist in any data** (a typo such as `gpaa` is rejected). The API calls `validate` with the keys actually present in the database; `GET /admin/configs/keys` exposes this list so that the admin form offers the right keys.
 
-Résolution d'une clé étudiant : dérivées (`english_cefr`, `english_pct`), natives (`gpa`, `english_score`, `associative`), puis `attributes`. Côté université : `capacity`, `min_gpa`, `min_cefr`, puis `attributes`. Attribut étudiant absent : `default` s'il existe, sinon 0 point (critère) ou inéligible (seuil, choix prudent). Attribut université absent dans un `ref` : le seuil ne s'applique pas à cette université.
+Resolving a student key: derived (`english_cefr`, `english_pct`), built-in (`gpa`, `english_score`, `associative`), then `attributes`. On the university side: `capacity`, `min_gpa`, `min_cefr`, then `attributes`. Missing student attribute: `default` if it exists, otherwise 0 points (criterion) or ineligible (threshold, the cautious choice). University attribute missing in a `ref`: the threshold does not apply to that university.
 
-### 5.2 Ajouter un critère sans modifier le code
+### 5.2 Adding a criterion without modifying the code
 
-1. Renseigner l'attribut : `PUT /admin/students/attributes` (CSV `student_id,key,value` ou JSON) en une requête pour toute la cohorte, ou `PATCH /admin/students/{id}` à l'unité ; idem `PUT /admin/universities/{id}` pour un seuil côté université.
-2. Dans l'espace admin, ajouter l'entrée dans `criteria`, `bonuses`, `eliminatory` ou `tie_break` ; valider ; enregistrer → nouvelle version.
-3. Lancer un run avec cette version.
+1. Fill in the attribute: `PUT /admin/students/attributes` (CSV `student_id,key,value` or JSON) in one request for the whole cohort, or `PATCH /admin/students/{id}` one at a time; likewise `PUT /admin/universities/{id}` for a university-side threshold.
+2. In the admin area, add the entry to `criteria`, `bonuses`, `eliminatory` or `tie_break`; validate; save → new version.
+3. Launch a run with this version.
 
-Preuves : `test_new_criterion_without_code_changes_outcome`, `test_university_attribute_threshold_without_code`, et la vérification « Nouveau critère sans code » du banc.
+Proof: `test_new_criterion_without_code_changes_outcome`, `test_university_attribute_threshold_without_code`, and the "New criterion without code" check of the benchmark.
 
-### 5.3 Algorithmes
+### 5.3 Algorithms
 
-Prétraitement commun (`algorithms.Problem`) : validation de la configuration contre les données et des entrées (vœux distincts, universités connues, capacités ≥ 0), score de chaque (étudiant, vœu), éligibilité, et pour chaque université l'ordre de préférence de ses candidats éligibles : score décroissant, puis `tie_break`, puis id. Ordre **total et strict** : condition de l'unicité du résultat et du rejeu.
+Shared preprocessing (`algorithms.Problem`): validation of the configuration against the data and of the inputs (distinct wishes, known universities, capacities ≥ 0), score of each (student, wish), eligibility, and for each university the preference order of its eligible candidates: descending score, then `tie_break`, then id. A **total and strict** order: the condition for the uniqueness of the result and for replay.
 
-| | Gale-Shapley (étudiants proposants, capacités) | Boston (acceptation immédiate) |
+| | Gale-Shapley (students proposing, capacities) | Boston (immediate acceptance) |
 |---|---|---|
-| Principe | Chaque étudiant propose à son meilleur vœu restant ; l'université garde provisoirement ses meilleurs candidats dans la limite des places et évince le pire, qui repropose | Tour 1 : tout le monde postule à son 1er vœu, admissions définitives ; tour 2 : les refusés postulent à leur 2e vœu sur les places restantes ; etc. |
-| Complexité | O(Σ vœux × log capacité), 5 000 propositions au plus | O(Σ vœux × log) |
-| Propriétés | Stable (0 paire bloquante, garanti), optimal pour les étudiants parmi les affectations stables, non manipulable par eux | Maximise le nombre de 1ers vœux servis, mais instable et manipulable (intérêt à « mentir » sur son 1er vœu) |
-| Rôle | Algorithme de publication | Point de comparaison dans le mode « et si » ; sa publication est refusée (`409`) |
+| Principle | Each student proposes to their best remaining wish; the university tentatively keeps its best candidates up to its seats and evicts the worst one, who proposes again | Round 1: everyone applies to their 1st wish, final admissions; round 2: rejected students apply to their 2nd wish on the remaining seats; etc. |
+| Complexity | O(Σ wishes × log capacity), at most 5,000 proposals | O(Σ wishes × log) |
+| Properties | Stable (0 blocking pairs, guaranteed), optimal for students among stable assignments, not manipulable by them | Maximizes the number of 1st wishes served, but unstable and manipulable (incentive to "lie" about one's 1st wish) |
+| Role | Publication algorithm | Point of comparison in what-if mode; its publication is rejected (`409`) |
 
-Sans `overrides`, toutes les universités classent les candidats dans le même ordre (seule l'éligibilité diffère) et Gale-Shapley coïncide avec un service par score décroissant. Avec `overrides`, les classements diffèrent d'une université à l'autre et la stabilité devient une vraie propriété : le banc le montre (« nominal + overrides »).
+Without `overrides`, all universities rank candidates in the same order (only eligibility differs) and Gale-Shapley coincides with serving students in descending score order. With `overrides`, the rankings differ from one university to another and stability becomes a real property: the benchmark shows it ("nominal + overrides").
 
-**Vérification automatique de stabilité** (`algorithms/stability.py`, `blocking_pairs`) : indépendante des algorithmes, elle ne lit que l'affectation finale. Une paire (étudiant, université) est bloquante si l'étudiant préfère cette université à son affectation et que l'université a une place libre ou le préfère à son pire admis. ≈ 0,3 ms pour 1 000 × 100 ; résultat stocké dans `runs.metrics`. Le banc exige aussi qu'elle *détecte* l'instabilité (Boston : 116 paires sur le scénario nominal).
+**Automatic stability check** (`algorithms/stability.py`, `blocking_pairs`): independent of the algorithms, it reads only the final assignment. A (student, university) pair is blocking if the student prefers that university to their assignment and the university has a free seat or prefers the student to its worst admitted student. ≈ 0.3 ms for 1,000 × 100; result stored in `runs.metrics`. The benchmark also requires it to *detect* instability (Boston: 116 pairs on the nominal scenario).
 
-### 5.4 Explication par étudiant
+### 5.4 Per-student explanation
 
-Pour chaque vœu, un statut et de quoi le justifier, stockés dans `assignments.explanation` :
+For each wish, a status and what justifies it, stored in `assignments.explanation`:
 
 ```json
 [
@@ -164,161 +164,161 @@ Pour chaque vœu, un statut et de quoi le justifier, stockés dans `assignments.
 ]
 ```
 
-- `score` est le score de l'étudiant **pour cette université** (il varie si elle a un `override`).
-- `cutoff` : score du dernier admis à cette université (Gale-Shapley : plancher final ; Boston : plancher du tour où l'étudiant a postulé). `cutoff: null` sur un `rejected` signifie « aucune place n'était ouverte » (capacité 0, ou déjà complète avant ce tour en Boston) : le client affiche ce libellé.
-- Cohérence vérifiée sur les 1 000 étudiants par `algorithms/metrics.py`, `explanation_violations` : un refusé n'excède jamais le plancher annoncé, un admis l'atteint toujours, et en Gale-Shapley un refus sans plancher n'existe que pour une capacité nulle.
+- `score` is the student's score **for this university** (it varies if the university has an `override`).
+- `cutoff`: score of the last admitted student at this university (Gale-Shapley: final cutoff; Boston: cutoff of the round in which the student applied). `cutoff: null` on a `rejected` entry means "no seat was open" (capacity 0, or already full before this round in Boston): the client displays this label.
+- Consistency checked on the 1,000 students by `algorithms/metrics.py`, `explanation_violations`: a rejected student never exceeds the stated cutoff, an admitted student always reaches it, and in Gale-Shapley a rejection without a cutoff only exists for zero capacity.
 
-Le texte (« Refusé : le dernier admis avait 74,9, votre score est 71,2 ») est rédigé par le client à partir de cette structure : traduction et rendu accessible restent de son ressort.
+The text ("Rejected: the last admitted student had 74.9, your score is 71.2") is written by the client from this structure: translation and accessible rendering remain its responsibility.
 
-### 5.5 Déterminisme et rejeu
+### 5.5 Determinism and replay
 
-- Score arrondi à 4 décimales ; ordre de préférence total (id en dernier) ; aucun recours à l'ordre des lignes (vérifié : entrées mélangées ⇒ même `output_hash`).
-- Départage à égalité parfaite : numéro de **tirage au sort** `lottery` tiré par `generator.draw_lottery(students, run.seed)` au snapshot, dans l'ordre des ids, stocké dans `attributes` (donc dans le snapshot), configurable dans `tie_break`, visible dans l'explication. Sans lui, l'id départagerait : légal mais arbitraire et invisible.
-- `runs.engine_version` = `engine.ENGINE_VERSION`. Un rejeu qui renvoie `identical: false` avec une version différente est expliqué comme tel. Les empreintes de référence (`test_golden_hashes_pin_engine_behaviour`) cassent dès que le moteur change de comportement : c'est voulu, on incrémente alors la version.
+- Score rounded to 4 decimal places; total preference order (id last); no reliance on row order (verified: shuffled inputs ⇒ same `output_hash`).
+- Tie-break on exact ties: **lottery** number `lottery` drawn by `generator.draw_lottery(students, run.seed)` at snapshot time, in id order, stored in `attributes` (and therefore in the snapshot), configurable in `tie_break`, visible in the explanation. Without it, the id would break the tie: legal but arbitrary and invisible.
+- `runs.engine_version` = `engine.ENGINE_VERSION`. A replay that returns `identical: false` with a different version is explained as such. The golden hashes (`test_golden_hashes_pin_engine_behaviour`) break as soon as the engine changes behavior: this is intended, the version is then incremented.
 
-## 6. Cycle de vie d'un run
+## 6. Run lifecycle
 
 ```
 Admin ─POST /admin/runs {config_id, algorithm, seed?}─▶ API
-  1. charger rule_configs[config_id]  (immuable)
-  2. snapshot : étudiants (champs, attributs, vœux) + universités (capacité, seuils, attributs) ; tirage `lottery` avec seed
+  1. load rule_configs[config_id]  (immutable)
+  2. snapshot: students (fields, attributes, wishes) + universities (capacity, thresholds, attributes); `lottery` draw with seed
      → runs.input_snapshot, input_hash, seed, engine_version
-  3. engine : Problem (valide config ⊗ données) → algorithme → métriques + paires bloquantes + explications   ≈ 16 ms
-  4. persister run + 1 000 assignments (un INSERT multi-lignes), une transaction
-  5. 201 {run}  ← comparatif immédiat
-Admin ─POST /admin/runs/{id}/publish─▶ published_at = now · wishes_open = false · tâche de fond : 1 appel FCM sur le sujet « results »
-Étudiant ─GET /me/result─▶ affectation + explication du dernier run publié (published_at max)
+  3. engine: Problem (validates config ⊗ data) → algorithm → metrics + blocking pairs + explanations   ≈ 16 ms
+  4. persist run + 1,000 assignments (one multi-row INSERT), one transaction
+  5. 201 {run}  ← immediate comparison
+Admin ─POST /admin/runs/{id}/publish─▶ published_at = now · wishes_open = false · background task: 1 FCM call on the "results" topic
+Student ─GET /me/result─▶ assignment + explanation of the latest published run (published_at max)
 ```
 
-- **Rejeu** : `POST /admin/runs/{id}/replay` relit `input_snapshot`, `config_id`, `seed`, relance le moteur, crée un run `replay_of = id`, répond `{"identical": bool, "engine_version": {"original", "current"}}`. Indépendant de l'état courant de la base.
-- **Et si** : `GET /admin/runs/{a}/compare/{b}` : deux blocs de métriques + étudiants dont l'affectation diffère. Le banc montre qu'un changement de pondération déplace ≈ 100 étudiants sur 1 000.
-- **Échec** : exception du moteur ⇒ transaction annulée, `status = failed`, `error` = message de `validate` ou d'entrées invalides, rien n'est publié.
-- **Plusieurs publications** : la plus récente fait foi et remplace la précédente ; l'historique reste consultable côté admin.
+- **Replay**: `POST /admin/runs/{id}/replay` reads back `input_snapshot`, `config_id`, `seed`, reruns the engine, creates a run `replay_of = id`, responds with `{"identical": bool, "engine_version": {"original", "current"}}`. Independent of the current database state.
+- **What-if**: `GET /admin/runs/{a}/compare/{b}`: two metric blocks + students whose assignment differs. The benchmark shows that a weight change moves ≈ 100 students out of 1,000.
+- **Failure**: engine exception ⇒ transaction rolled back, `status = failed`, `error` = the `validate` or invalid inputs message, nothing is published.
+- **Multiple publications**: the most recent one is authoritative and replaces the previous one; the history remains viewable on the admin side.
 
-Taille d'un snapshot 1 000 × 100 : ≈ 180 Ko de JSON (mesuré). Cent runs ≈ 18 Mo.
+Size of a 1,000 × 100 snapshot: ≈ 180 KB of JSON (measured). One hundred runs ≈ 18 MB.
 
-## 7. API REST
+## 7. REST API
 
-Conventions : JSON, `snake_case`, erreurs `application/problem+json` (RFC 9457) avec `errors[]` liés aux champs, dates ISO 8601 UTC, OpenAPI sur `/docs` et `/openapi.json`. Pagination `?limit=&offset=` sur les listes admin uniquement.
+Conventions: JSON, `snake_case`, `application/problem+json` errors (RFC 9457) with `errors[]` tied to fields, ISO 8601 UTC dates, OpenAPI on `/docs` and `/openapi.json`. Pagination `?limit=&offset=` on admin lists only.
 
-| Méthode et chemin | Rôle | Comportement |
+| Method and path | Role | Behavior |
 |---|---|---|
-| `POST /auth/login` · `POST /auth/logout` · `GET /me` | tous | session cookie (web) ou jeton Bearer (mobile), même mécanisme |
-| `GET /universities` (filtres `continent, country, language, max_cefr, max_cost, q`) · `GET /universities/{id}` | étudiant, admin | `ETag` + `Cache-Control: max-age=300` ; `304` si inchangé |
-| `GET /me/wishes` · `PUT /me/wishes` `[id×5]` | étudiant | exactement 5 ids distincts et existants sinon `400` ; remplacement atomique ; `409` si `wishes_open = false` ; renvoie `updated_at` |
-| `GET /me/result` | étudiant | dernier run publié ; `404` tant que rien n'est publié |
-| `POST /me/devices {platform, token}` · `DELETE /me/devices/{token}` | étudiant | enregistrement + abonnement au sujet FCM `results` |
-| `GET /admin/configs` · `GET /admin/configs/{id}` · `GET /admin/configs/keys` · `POST /admin/configs/validate` · `POST /admin/configs` | admin | `POST` idempotent : même contenu ⇒ `200` avec la version existante, sinon `201` (`parent_id` = version de départ) ; `keys` = clés utilisables |
-| `POST /admin/runs` · `GET /admin/runs` · `GET /admin/runs/{id}` · `GET /admin/runs/{id}/assignments?format=json\|csv` | admin | run synchrone, `201` ; `seed` optionnel (défaut : aléatoire, stocké) |
-| `GET /admin/runs/{a}/compare/{b}` · `POST /admin/runs/{id}/replay` · `POST /admin/runs/{id}/publish` | admin | §6 ; `publish` refuse un run Boston ou `failed` (`409`) |
+| `POST /auth/login` · `POST /auth/logout` · `GET /me` | all | session cookie (web) or Bearer token (mobile), same mechanism |
+| `GET /universities` (filters `continent, country, language, max_cefr, max_cost, q`) · `GET /universities/{id}` | student, admin | `ETag` + `Cache-Control: max-age=300`; `304` if unchanged |
+| `GET /me/wishes` · `PUT /me/wishes` `[id×5]` | student | exactly 5 distinct, existing ids, otherwise `400`; atomic replacement; `409` if `wishes_open = false`; returns `updated_at` |
+| `GET /me/result` | student | latest published run; `404` until something is published |
+| `POST /me/devices {platform, token}` · `DELETE /me/devices/{token}` | student | registration + subscription to the FCM topic `results` |
+| `GET /admin/configs` · `GET /admin/configs/{id}` · `GET /admin/configs/keys` · `POST /admin/configs/validate` · `POST /admin/configs` | admin | idempotent `POST`: same content ⇒ `200` with the existing version, otherwise `201` (`parent_id` = starting version); `keys` = usable keys |
+| `POST /admin/runs` · `GET /admin/runs` · `GET /admin/runs/{id}` · `GET /admin/runs/{id}/assignments?format=json\|csv` | admin | synchronous run, `201`; optional `seed` (default: random, stored) |
+| `GET /admin/runs/{a}/compare/{b}` · `POST /admin/runs/{id}/replay` · `POST /admin/runs/{id}/publish` | admin | §6; `publish` rejects a Boston or `failed` run (`409`) |
 | `GET /admin/stats` | admin | `{demand: [{university_id, wishes_by_rank: [n1..n5], capacity}], gpa_hist, english_hist, associative_hist, wishes_by_continent, published_run_metrics}` |
-| `GET /admin/students` · `PATCH /admin/students/{id}` · `PUT /admin/students/attributes` | admin | attributs libres ; import en masse CSV/JSON |
-| `POST /admin/students/generate {seed, scenario, n}` | admin | régénère la cohorte fictive ; `409` dès qu'un run existe (les runs référencent les étudiants) |
-| `GET /admin/universities` · `PUT /admin/universities/{id}` | admin | places, seuils, attributs, infos pratiques |
+| `GET /admin/students` · `PATCH /admin/students/{id}` · `PUT /admin/students/attributes` | admin | free-form attributes; bulk CSV/JSON import |
+| `POST /admin/students/generate {seed, scenario, n}` | admin | regenerates the fictional cohort; `409` as soon as a run exists (runs reference students) |
+| `GET /admin/universities` · `PUT /admin/universities/{id}` | admin | seats, thresholds, attributes, practical info |
 | `GET /admin/settings` · `PUT /admin/settings` | admin | `wishes_open` |
-| `GET /health` | public | base joignable, version de l'API et du moteur |
+| `GET /health` | public | database reachable, API and engine version |
 
-Règle de conception : **aucune route étudiant ne prend d'identifiant d'étudiant**. Tout passe par `/me`, résolu depuis la session. L'accès aux données d'un autre étudiant n'a pas de chemin.
+Design rule: **no student route takes a student identifier**. Everything goes through `/me`, resolved from the session. There is no path to another student's data.
 
-## 8. Contrat avec l'application mobile
+## 8. Contract with the mobile app
 
-- **Hors connexion** : chargement de `GET /universities` au premier lancement, stockage local (JSON + images par URL) ; à chaque ouverture, requête conditionnelle `If-None-Match`, `304` = rien à télécharger. Fiches, carte et filtres fonctionnent sur ce cache.
-- **Synchronisation des vœux** : vœux côté serveur uniquement ; `PUT /me/wishes` remplace la liste et renvoie `updated_at`. Dernier écrit gagne (un étudiant, deux appareils : conflit improbable) ; `If-Match` à ajouter si des conflits apparaissent.
-- **Notification** : à l'enregistrement d'un appareil, l'API l'abonne au sujet FCM `results` ; à la publication, un seul message de données `{"type": "results_published", "run_id": …}` sur le sujet. L'app affiche la notification et rafraîchit `GET /me/result`. Repli : interrogation de `GET /me/result` à l'ouverture. **Sur simulateur iOS, aucun push réel n'arrive** : si la cible est iOS, la démo passe par un vrai appareil ou par le repli (question ouverte §14).
-- **Authentification** : `POST /auth/login` renvoie aussi le jeton dans le corps ; l'app le stocke dans le trousseau et l'envoie en `Authorization: Bearer`.
+- **Offline**: `GET /universities` loaded at first launch, stored locally (JSON + images by URL); each time the app opens, conditional `If-None-Match` request, `304` = nothing to download. University pages, map and filters work from this cache.
+- **Wish synchronization**: wishes on the server side only; `PUT /me/wishes` replaces the list and returns `updated_at`. Last write wins (one student, two devices: conflict unlikely); add `If-Match` if conflicts appear.
+- **Notification**: when a device is registered, the API subscribes it to the FCM topic `results`; at publication, a single data message `{"type": "results_published", "run_id": …}` on the topic. The app displays the notification and refreshes `GET /me/result`. Fallback: polling `GET /me/result` when the app opens. **On the iOS simulator, no real push arrives**: if the target is iOS, the demo uses a real device or the fallback (open question §14).
+- **Authentication**: `POST /auth/login` also returns the token in the body; the app stores it in the keychain and sends it as `Authorization: Bearer`.
 
-## 9. Sécurité (OWASP Top 10 2021)
+## 9. Security (OWASP Top 10 2021)
 
-| Risque | Mesure |
+| Risk | Measure |
 |---|---|
-| A01 Contrôle d'accès | `require_role("admin")` sur tout `/admin/*` ; routes étudiant en `/me` uniquement ; tests d'API qui tentent l'accès croisé |
-| A02 Cryptographie | argon2id ; TLS terminé par l'hébergeur ; jetons de session 32 octets aléatoires, stockés hachés (`sessions.token_hash`) |
-| A03 Injection | ORM à paramètres liés ; Pydantic sur toutes les entrées ; règles = données validées, opérateurs en liste blanche, clés vérifiées contre les données, pas d'évaluation d'expression |
-| A04 Conception | Configurations immuables, snapshots, vœux verrouillés à la publication, régénération interdite après un run |
-| A05 Configuration | En-têtes (`HSTS`, `X-Content-Type-Options`, `Content-Security-Policy`), SPA servie par l'API donc **pas de CORS en production** (ADR-0005), debug désactivé hors développement, `.env.example` |
-| A06 Composants | `uv.lock` ; Dependabot ; `pip-audit` en CI |
-| A07 Authentification | Limitation de débit sur `/auth/login` (5 essais / minute / IP et compte) ; expiration 7 jours glissants ; rotation à la connexion ; message identique que l'email existe ou non |
-| A08 Intégrité | Vérifications CI obligatoires ; dépendances verrouillées ; image construite en CI |
-| A09 Journalisation | Logs structurés JSON ; actions admin (config créée, run, publication, import) journalisées avec l'auteur |
-| A10 SSRF | Aucun appel sortant construit depuis une entrée utilisateur (FCM seul, URL fixe) |
+| A01 Access control | `require_role("admin")` on all of `/admin/*`; student routes under `/me` only; API tests that attempt cross-access |
+| A02 Cryptography | argon2id; TLS terminated by the host; random 32-byte session tokens, stored hashed (`sessions.token_hash`) |
+| A03 Injection | ORM with bound parameters; Pydantic on all inputs; rules = validated data, allowlisted operators, keys checked against the data, no expression evaluation |
+| A04 Design | Immutable configurations, snapshots, wishes locked at publication, regeneration forbidden after a run |
+| A05 Configuration | Headers (`HSTS`, `X-Content-Type-Options`, `Content-Security-Policy`), SPA served by the API and therefore **no CORS in production** (ADR-0005), debug disabled outside development, `.env.example` |
+| A06 Components | `uv.lock`; Dependabot; `pip-audit` in CI |
+| A07 Authentication | Rate limiting on `/auth/login` (5 attempts / minute / IP and account); sliding 7-day expiry; rotation at login; identical message whether or not the email exists |
+| A08 Integrity | Required CI checks; locked dependencies; image built in CI |
+| A09 Logging | Structured JSON logs; admin actions (config created, run, publication, import) logged with their author |
+| A10 SSRF | No outbound call built from user input (FCM only, fixed URL) |
 
-Données fictives traitées comme réelles : pas d'export sans rôle admin, emails de démo en `@exemple.test`.
+Fictional data treated as real: no export without the admin role, demo emails at `@exemple.test`.
 
 ## 10. Performance
 
-Budget : préparation + affectation + vérification de stabilité en moins de 500 ms pour 1 000 × 100, afin de tenir dans la requête HTTP (ADR-0004). Mesuré hors base, Apple M3, Python 3.14, médiane de 5 exécutions (une seule au-delà de 1 000 étudiants), `docs/benchmark-results.md` :
+Budget: preparation + assignment + stability check in under 500 ms for 1,000 × 100, so as to fit in the HTTP request (ADR-0004). Measured excluding the database, Apple M3, Python 3.14, median of 5 executions (a single one beyond 1,000 students), `docs/benchmark-results.md`:
 
-| Instance | Gale-Shapley | Boston | dont détection des paires bloquantes |
+| Instance | Gale-Shapley | Boston | of which blocking pair detection |
 |---|---:|---:|---:|
-| 1 000 × 100 (le besoin) | ≈ 16 ms | ≈ 16 ms | 0,3 ms |
-| 10 000 × 1 000 | ≈ 0,2 s | ≈ 0,2 s | 3 ms |
-| 50 000 × 1 000 | ≈ 1,1 s | ≈ 1,1 s | 40 ms |
+| 1,000 × 100 (the required size) | ≈ 16 ms | ≈ 16 ms | 0.3 ms |
+| 10,000 × 1,000 | ≈ 0.2 s | ≈ 0.2 s | 3 ms |
+| 50,000 × 1,000 | ≈ 1.1 s | ≈ 1.1 s | 40 ms |
 
-Le temps est dominé par la préparation (scores, éligibilité, tri des candidats), linéaire en Σ vœux. Dix fois le besoin tient dans le budget ; cinquante fois le dépasse : c'est le seuil où une file de tâches se justifierait.
+The time is dominated by preparation (scores, eligibility, candidate sorting), linear in Σ wishes. Ten times the required size fits in the budget; fifty times exceeds it: this is the threshold at which a task queue would be justified.
 
-**Ce qui n'est pas encore mesuré** : le run de bout en bout (`POST /admin/runs`) avec lecture des 1 000 étudiants, écriture du snapshot (≈ 180 Ko) et des 1 000 affectations avec explications (≈ 0,5 à 1 Mo) sur une base distante. Attendu : 100 à 300 ms depuis Fly.io vers Neon dans la même région. Ce chiffre entre dans les tests d'API dès que l'API existe, et le budget de 500 ms couvre les deux parties.
+**What is not measured yet**: the end-to-end run (`POST /admin/runs`) with reading the 1,000 students, writing the snapshot (≈ 180 KB) and the 1,000 assignments with explanations (≈ 0.5 to 1 MB) on a remote database. Expected: 100 to 300 ms from Fly.io to Neon in the same region. This figure goes into the API tests as soon as the API exists, and the 500 ms budget covers both parts.
 
-Comparatif sur le besoin (nominal) : Gale-Shapley 62,9 % de 1ers vœux, 17,8 % de non-affectés, rang moyen 1,39, 0 paire bloquante ; Boston 68,9 %, 18,5 %, 1,25, **116 paires bloquantes**. Les cinq autres scénarios, la variante avec pondérations par université et les 68 vérifications sont dans le rapport.
+Comparison at the required size (nominal): Gale-Shapley 62.9% 1st wishes, 17.8% unassigned, average rank 1.39, 0 blocking pairs; Boston 68.9%, 18.5%, 1.25, **116 blocking pairs**. The five other scenarios, the variant with per-university weights and the 68 checks are in the report.
 
-## 11. Tests, CI/CD, exploitation
+## 11. Tests, CI/CD, operations
 
-**Tests** (`pytest`, une commande) :
-- moteur et générateur : `packages/*/tests`, 23 tests, < 3 s : règles (validation, seuils, bonus, critère sans code, départage, overrides), deux algorithmes avec vérification automatique de stabilité, générateur (reproductibilité, bornes, continents), échelle d'anglais, empreintes de référence ;
-- API (`TestClient`, Postgres éphémère) : droits et accès croisé, cycle run → publier → résultat, rejeu identique, mapping base → moteur, mesure de bout en bout ;
-- données : `data/universities.json` validé par un schéma JSON (100 entrées, 6 continents, GPS, chaque photo avec `author`/`license`/`alt`, `cost_of_living.source`, `sources[]` non vide) ;
-- le banc (`pnpm bench`) est une suite d'assertions et tourne en CI sur chaque PR, rapport en artefact (sans commit du rapport : les temps varient, seules les vérifications sont comparables).
+**Tests** (`pytest`, one command):
+- engine and generator: `packages/*/tests`, 23 tests, < 3 s: rules (validation, thresholds, bonuses, criterion without code, tie-break, overrides), two algorithms with automatic stability check, generator (reproducibility, bounds, continents), English scale, golden hashes;
+- API (`TestClient`, ephemeral Postgres): permissions and cross-access, run → publish → result cycle, identical replay, database → engine mapping, end-to-end measurement;
+- data: `data/universities.json` validated by a JSON schema (100 entries, 6 continents, GPS, each photo with `author`/`license`/`alt`, `cost_of_living.source`, non-empty `sources[]`);
+- the benchmark (`pnpm bench`) is an assertion suite and runs in CI on every PR, report as an artifact (the report is not committed: timings vary, only the checks are comparable).
 
-**CI** (GitHub Actions, chaque PR) : `ruff check` + `ruff format --check`, `pytest`, banc, `docker build`. Vérifications obligatoires sur `main`.
+**CI** (GitHub Actions, every PR): `ruff check` + `ruff format --check`, `pytest`, benchmark, `docker build`. Required checks on `main`.
 
-**CD** : merge sur `main` → déploiement Fly.io ; `alembic upgrade head` au démarrage ; seed du jeu de démo si la base est vide. La SPA est construite dans l'image et servie par l'API sous `/` (l'API sous `/api`). Mobile : build APK / simulateur publié en artefact par le pipeline du dépôt mobile (ou du même dépôt, question ouverte §14).
+**CD**: merge to `main` → Fly.io deployment; `alembic upgrade head` at startup; demo dataset seeded if the database is empty. The SPA is built in the image and served by the API under `/` (the API under `/api`). Mobile: APK / simulator build published as an artifact by the pipeline of the mobile repository (or of the same repository, open question §14).
 
-**Démarrage local** : `docker compose up` lance Postgres + API, applique les migrations, charge 100 universités et 1 000 étudiants (`generate(seed=42)`), crée un compte admin et trois comptes étudiants de démo (mots de passe dans `.env.example`). Swagger sur `http://localhost:8000/docs`.
+**Local startup**: `docker compose up` starts Postgres + API, applies the migrations, loads 100 universities and 1,000 students (`generate(seed=42)`), creates one admin account and three demo student accounts (passwords in `.env.example`). Swagger at `http://localhost:8000/docs`.
 
-**Logs** : lisibles en développement (requêtes SQL affichées), JSON en production.
+**Logs**: readable in development (SQL queries displayed), JSON in production.
 
-## 12. Place du backend dans le mono-dépôt
+## 12. The backend's place in the monorepo
 
 ```
 apps/api/
 ├── app/
-│   ├── main.py            FastAPI : routes sous /api, en-têtes de sécurité, démarrage (tables + jeu de démo)
-│   ├── db.py              connexion SQLAlchemy et tables du §4
-│   ├── auth.py            argon2id, sessions opaques, require_role, limitation des échecs de connexion
-│   └── services.py        mapping base → moteur, snapshot (dont lottery) → engine → persistance
-├── tests/                 functional/ (API en processus), e2e/ (plateforme démarrée) : voir testing.md
-└── Dockerfile             image de production, construite depuis la racine du dépôt
+│   ├── main.py            FastAPI: routes under /api, security headers, startup (tables + demo dataset)
+│   ├── db.py              SQLAlchemy connection and the tables from §4
+│   ├── auth.py            argon2id, opaque sessions, require_role, login failure limiting
+│   └── services.py        database → engine mapping, snapshot (including lottery) → engine → persistence
+├── tests/                 functional/ (in-process API), e2e/ (running platform): see testing.md
+└── Dockerfile             production image, built from the repository root
 packages/engine/
-├── rules/                 format de configuration, critères, seuils, bonus, départage ; english.py (échelle CEFR)
-├── algorithms/            problem.py (prétraitement commun), gale_shapley.py, boston.py, stability.py, metrics.py
-├── benchmark/run.py       banc d'essai : temps pour 1 000 étudiants et plus, par algorithme
+├── rules/                 configuration format, criteria, thresholds, bonuses, tie-break; english.py (CEFR scale)
+├── algorithms/            problem.py (shared preprocessing), gale_shapley.py, boston.py, stability.py, metrics.py
+├── benchmark/run.py       benchmark: time for 1,000 students and more, per algorithm
 └── tests/
-packages/generator/        étudiants et universités fictifs, seed, scénarios de tension ; tests/
-docs/technical/            ce document, benchmark-protocol.md, benchmark-results.md, testing.md
-docs/adr/                  décisions
-pyproject.toml · uv.lock   environnement Python unique du dépôt (uv), importé comme app, engine, generator
+packages/generator/        fictional students and universities, seed, stress scenarios; tests/
+docs/technical/            this document, benchmark-protocol.md, benchmark-results.md, testing.md
+docs/adr/                  decisions
+pyproject.toml · uv.lock   the repository's single Python environment (uv), imported as app, engine, generator
 ```
 
-À venir dans `apps/api` quand le besoin apparaît : Alembic (migrations), `notify.py` (adaptateur FCM), découpage de
-`main.py` en routers par espace. `data/destinations/` remplacera les universités générées.
+Coming to `apps/api` when the need arises: Alembic (migrations), `notify.py` (FCM adapter), splitting
+`main.py` into routers per area. `data/destinations/` will replace the generated universities.
 
-## 13. Volontairement reporté
+## 13. Deliberately postponed
 
-| Non fait | Pourquoi | Quand l'ajouter |
+| Not done | Why | When to add it |
 |---|---|---|
-| File de tâches (Celery, Redis) | run ≈ 16 ms ; publication en tâche de fond FastAPI (un appel FCM) | si un run dépasse 5 s (≥ 100 000 étudiants) |
-| JWT / OAuth | sessions opaques révocables, plus simples | jamais pour ce projet |
-| Cache Redis du catalogue | 100 lignes, `ETag` suffit | jamais pour ce projet |
-| Verrou optimiste sur les vœux | un étudiant, conflit improbable | `If-Match` si conflits observés |
-| Historique des modifications d'étudiants | le snapshot de run suffit au rejeu | si l'audit individuel est demandé |
-| Second tour pour les non-affectés (≈ 18 % en nominal) | politique à décider (§14) | dès la réponse : nouveau run sur places restantes avec vœux complémentaires, même moteur |
-| Grille CEFR modifiable par l'admin | constante sourcée (ADR-0007) | si une autre certification (Cambridge, TOEFL) entre au catalogue |
+| Task queue (Celery, Redis) | run ≈ 16 ms; publication as a FastAPI background task (one FCM call) | if a run exceeds 5 s (≥ 100,000 students) |
+| JWT / OAuth | revocable opaque sessions, simpler | never for this project |
+| Redis cache for the catalog | 100 rows, `ETag` is enough | never for this project |
+| Optimistic lock on wishes | one student, conflict unlikely | `If-Match` if conflicts are observed |
+| History of student changes | the run snapshot is enough for replay | if individual audit is requested |
+| Second round for unassigned students (≈ 18% in nominal) | policy to be decided (§14) | as soon as there is an answer: new run on the remaining seats with additional wishes, same engine |
+| CEFR table editable by the admin | sourced constant (ADR-0007) | if another certification (Cambridge, TOEFL) enters the catalog |
 
-## 14. Décisions prises par l'auteur, et questions qui restent au propriétaire
+## 14. Decisions made by the author, and questions left to the owner
 
-**Tranchées ici (à contester si besoin)** : stack Python/FastAPI/PostgreSQL (ADR-0001, confirmée le 2026-11-02) ; échelle d'anglais commune par bandes CEFR (ADR-0007) ; tirage au sort seedé comme dernier départage ; `name` hors empreinte de version ; `POST /admin/configs` idempotent ; exactement 5 vœux ; dernier run publié fait foi ; publication d'un run Boston refusée ; régénération de cohorte interdite après un run ; SPA servie par l'API ; Fly.io plutôt que Render.
+**Decided here (open to challenge if needed)**: Python/FastAPI/PostgreSQL stack (ADR-0001, confirmed on 2026-11-02); common English scale by CEFR bands (ADR-0007); seeded lottery as the final tie-break; `name` excluded from the version hash; idempotent `POST /admin/configs`; exactly 5 wishes; latest published run is authoritative; publication of a Boston run rejected; cohort regeneration forbidden after a run; SPA served by the API; Fly.io rather than Render.
 
-**À trancher par l'équipe, car la réponse change ce qui est construit** :
-1. Un dépôt unique (web + backend + mobile, ce que le PDF suggère) ou trois : change CI, Compose, README, GitHub Projects.
-2. Plateforme mobile : iOS ou Android. iOS ⇒ pas de push sur simulateur, démo de la notification sur appareil réel ou via le repli.
-3. Sort des non-affectés : statut final, second tour sur places restantes, ou affectation forcée ?
-4. Départage : le tirage au sort seedé convient-il à l'école fictive, ou préfère-t-elle un critère déterministe affiché (ancienneté, etc.) ?
+**To be decided by the team, because the answer changes what gets built**:
+1. A single repository (web + backend + mobile, as the PDF suggests) or three: changes CI, Compose, README, GitHub Projects.
+2. Mobile platform: iOS or Android. iOS ⇒ no push on the simulator, notification demo on a real device or through the fallback.
+3. Fate of unassigned students: final status, second round on the remaining seats, or forced assignment?
+4. Tie-break: does the seeded lottery suit the fictional school, or does it prefer a displayed deterministic criterion (seniority, etc.)?

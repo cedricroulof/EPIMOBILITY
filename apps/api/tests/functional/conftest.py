@@ -1,4 +1,4 @@
-"""API testée en processus (TestClient) sur une base SQLite en mémoire, neuve pour chaque test : isolation totale."""
+"""API tested in process (TestClient) on an in-memory SQLite database, fresh for each test: full isolation."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app import auth, db, services
 from app.main import app
 
-PASSWORD = "demo1234"  # jeu de test uniquement
+PASSWORD = "demo1234"  # test dataset only
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def client():
 
     app.dependency_overrides[db.get_db] = override
     auth._failures.clear()
-    yield TestClient(app)  # sans `with` : pas de lifespan, la base de test n'est pas remplacée
+    yield TestClient(app)  # without `with`: no lifespan, the test database is not replaced
     app.dependency_overrides.clear()
 
 

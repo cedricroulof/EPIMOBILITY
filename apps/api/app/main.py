@@ -1,4 +1,4 @@
-"""API REST (§7 de docs/architecture.md), sous /api : le web et le mobile en sont deux clients. OpenAPI sur /docs."""
+"""REST API (§7 of docs/architecture.md), under /api: web and mobile are two clients of it. OpenAPI at /docs."""
 
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
@@ -18,7 +18,7 @@ from .db import get_db
 
 @asynccontextmanager
 async def lifespan(_app):
-    # ponytail: create_all au démarrage ; passer à Alembic dès qu'un schéma déployé doit évoluer
+    # ponytail: create_all at startup; switch to Alembic as soon as a deployed schema has to evolve
     m.Base.metadata.create_all(m.engine)
     with m.SessionLocal() as db:
         services.seed(db)
@@ -91,14 +91,14 @@ def universities(db: Db, continent: str | None = None):
 @api.get("/universities/{uni_id}", dependencies=[Depends(current_user)])
 def university(uni_id: str, db: Db):
     if (u := db.get(m.University, uni_id)) is None:
-        raise HTTPException(404, "Université inconnue")
+        raise HTTPException(404, "Unknown university")
     return _uni(u)
 
 
-# ── espace étudiant : aucune route ne prend d'identifiant d'étudiant, tout passe par la session ──
+# ── student area: no route takes a student identifier, everything goes through the session ──
 def _distinct(ids: list[str]) -> list[str]:
     if len(set(ids)) != len(ids):
-        raise ValueError("les 5 vœux doivent être distincts")
+        raise ValueError("the 5 wishes must be distinct")
     return ids
 
 
@@ -117,12 +117,12 @@ def get_wishes(user: Student, db: Db):
 
 @api.put("/me/wishes")
 def put_wishes(body: WishesIn, user: Student, db: Db):
-    # ponytail: vœux fermés dès qu'un run est publié ; réglage `wishes_open` admin quand la réouverture sera demandée
+    # ponytail: wishes closed as soon as a run is published; admin `wishes_open` setting when reopening is requested
     if _published(db):
-        raise HTTPException(409, "Les vœux sont fermés : les résultats sont publiés")
+        raise HTTPException(409, "Wishes are closed: the results are published")
     unknown = set(body.wishes) - set(db.scalars(select(m.University.id).where(m.University.id.in_(body.wishes))))
     if unknown:
-        raise HTTPException(422, f"Universités inconnues : {sorted(unknown)}")
+        raise HTTPException(422, f"Unknown universities: {sorted(unknown)}")
     student = db.get(m.Student, user.student_id)
     student.wishes.clear()
     db.flush()
@@ -134,12 +134,12 @@ def put_wishes(body: WishesIn, user: Student, db: Db):
 @api.get("/me/result")
 def my_result(user: Student, db: Db):
     if (run := _published(db)) is None:
-        raise HTTPException(404, "Aucun résultat publié")
+        raise HTTPException(404, "No published result")
     a = db.get(m.Assignment, (run.id, user.student_id))
     return {"run_id": run.id, "university_id": a.university_id, "rank": a.rank, "explanation": a.explanation}
 
 
-# ── espace administration ────────────────────────────────────────────────────
+# ── admin area ───────────────────────────────────────────────────────────────
 @api.get("/admin/configs")
 def list_configs(_: Admin, db: Db):
     return [{"id": c.id, "name": c.name, "config": c.config} for c in db.scalars(select(m.RuleConfig))]
@@ -147,7 +147,7 @@ def list_configs(_: Admin, db: Db):
 
 @api.post("/admin/configs", status_code=201)
 def create_config(config: dict, _: Admin, db: Db, response: Response):
-    """Idempotent : même contenu ⇒ même version (200). Toutes les erreurs sont renvoyées d'un coup (422)."""
+    """Idempotent: same content ⇒ same version (200). All errors are returned at once (422)."""
     s_keys, u_keys = services.attribute_keys(db)
     try:
         rules.validate(config, student_keys=s_keys, university_keys=u_keys)
@@ -171,13 +171,13 @@ class RunIn(BaseModel):
 
 def _run(db, run_id: int) -> m.Run:
     if (run := db.get(m.Run, run_id)) is None:
-        raise HTTPException(404, "Run inconnu")
+        raise HTTPException(404, "Unknown run")
     return run
 
 
 def _execute(db, config_id, algorithm, seed, inputs, replay_of=None):
     if (config := db.get(m.RuleConfig, config_id)) is None:
-        raise HTTPException(404, "Configuration inconnue")
+        raise HTTPException(404, "Unknown configuration")
     try:
         return services.execute(db, config, algorithm, seed, inputs, replay_of)
     except ValueError as e:
@@ -202,7 +202,7 @@ def get_run(run_id: int, _: Admin, db: Db):
 
 @api.post("/admin/runs/{run_id}/replay", status_code=201)
 def replay(run_id: int, _: Admin, db: Db):
-    """Rejoue depuis le snapshot stocké, indépendamment de l'état courant de la base."""
+    """Replays from the stored snapshot, regardless of the current state of the database."""
     orig = _run(db, run_id)
     new = _execute(db, orig.config_id, orig.algorithm, orig.seed, services.from_snapshot(orig.input_snapshot), orig.id)
     return {
@@ -216,7 +216,7 @@ def replay(run_id: int, _: Admin, db: Db):
 def publish(run_id: int, _: Admin, db: Db):
     run = _run(db, run_id)
     if run.algorithm != "gale_shapley":
-        raise HTTPException(409, "Seul un run Gale-Shapley (stable) peut être publié")
+        raise HTTPException(409, "Only a Gale-Shapley (stable) run can be published")
     run.published_at = m.now()
     db.commit()
     return services.run_view(run)
@@ -224,7 +224,7 @@ def publish(run_id: int, _: Admin, db: Db):
 
 @api.get("/admin/runs/{a}/compare/{b}")
 def compare(a: int, b: int, _: Admin, db: Db):
-    """Mode « et si » : métriques côte à côte et étudiants dont l'affectation change."""
+    """What-if mode: metrics side by side and students whose assignment changes."""
     ra, rb = _run(db, a), _run(db, b)
     q = select(m.Assignment.student_id, m.Assignment.university_id)
     xa, xb = (dict(db.execute(q.filter_by(run_id=r)).all()) for r in (a, b))

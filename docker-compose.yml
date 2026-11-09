@@ -1,6 +1,6 @@
-# Plateforme complète en une commande : docker compose up --build (ou pnpm dev)
-# Base + API aujourd'hui ; le service web (apps/web) s'ajoutera ici.
-# API sur http://localhost:8000/api, documentation OpenAPI sur http://localhost:8000/docs
+# Full platform in one command: docker compose up --build (or pnpm dev)
+# Database + API today; the web service (apps/web) will be added here.
+# API at http://localhost:8000/api, OpenAPI documentation at http://localhost:8000/docs
 services:
   db:
     image: postgres:16-alpine
