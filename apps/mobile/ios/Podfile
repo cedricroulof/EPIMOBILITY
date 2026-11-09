@@ -34,7 +34,9 @@ target 'EpiMobility' do
     # Some pods still declare iOS 12.4, below what Xcode supports.
     installer.pods_project.targets.each do |t|
       t.build_configurations.each do |c|
-        c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1' if c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.1
+        target = c.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        next if target.nil? # inherits the project setting, leave it alone
+        c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = min_ios_version_supported if target.to_f < min_ios_version_supported.to_f
       end
     end
   end

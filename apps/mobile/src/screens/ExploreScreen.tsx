@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Keyboard, Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,9 @@ const PLACES = [
   { id: 'cn', name: 'Beijing, China', latitude: 39.9042, longitude: 116.4074 },
   { id: 'jp', name: 'Tokyo, Japan', latitude: 35.6762, longitude: 139.6503 },
 ];
+
+// Centered on Europe, zoomed out as far as the map allows (the map clamps oversized deltas).
+const HOME_REGION = { latitude: 50, longitude: 10, latitudeDelta: 160, longitudeDelta: 360 };
 
 function MapListToggle({ value, onChange }: { value: 'map' | 'list'; onChange: (v: 'map' | 'list') => void }) {
   return (
@@ -39,18 +42,28 @@ function MapListToggle({ value, onChange }: { value: 'map' | 'list'; onChange: (
 }
 
 
-function DisplayMap({ expanded, onToggle, places }: { expanded: boolean; onToggle: () => void; places: typeof PLACES }) {
+function DisplayMap({ expanded, onToggle, places, topInset }: { expanded: boolean; onToggle: () => void; places: typeof PLACES; topInset: number }) {
   const mapRef = useRef<MapView>(null);
 
-  // Frame the visible markers whenever the filtered list changes.
-  useEffect(() => {
-    if (places.length) {
+  const fitPlaces = useCallback(() => {
+    if (places.length === PLACES.length) {
+      // No filter: go back to the home view instead of fitting the far-apart pins.
+      mapRef.current?.animateToRegion(HOME_REGION, 0);
+    } else if (places.length === 1) {
+      // A single point has no span, so fitToCoordinates would zoom to street level.
+      const { latitude, longitude } = places[0];
+      mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta: 8, longitudeDelta: 8 }, 600);
+    } else if (places.length) {
       mapRef.current?.fitToCoordinates(
         places.map(p => ({ latitude: p.latitude, longitude: p.longitude })),
         { edgePadding: { top: 50, right: 50, bottom: 50, left: 50 }, animated: true },
       );
     }
   }, [places]);
+
+  // Re-frame when the filtered list changes. The first frame is done by onMapReady,
+  // since the map isn't ready yet when this effect first runs.
+  useEffect(fitPlaces, [fitPlaces]);
 
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
@@ -61,7 +74,7 @@ function DisplayMap({ expanded, onToggle, places }: { expanded: boolean; onToggl
             : { flex: 1, width: '90%', borderRadius: 16, overflow: 'hidden', marginTop: 10, marginBottom: 10 }
         }
       >
-        <MapView ref={mapRef} style={{ flex: 1 }}>
+        <MapView ref={mapRef} style={{ flex: 1 }} initialRegion={HOME_REGION} onMapReady={fitPlaces}>
           {places.map(p => (
             <Marker key={p.id} coordinate={{ latitude: p.latitude, longitude: p.longitude }} title={p.name} />
           ))}
@@ -72,7 +85,7 @@ function DisplayMap({ expanded, onToggle, places }: { expanded: boolean; onToggl
           accessibilityLabel={expanded ? 'Collapse map' : 'Expand map'}
           style={{
             position: 'absolute',
-            top: 8,
+            top: expanded ? topInset + 8 : 8,
             right: 8,
             width: 36,
             height: 36,
@@ -90,7 +103,7 @@ function DisplayMap({ expanded, onToggle, places }: { expanded: boolean; onToggl
 }
 
 export default function ExploreScreen() {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
   const [view, setView] = useState<'map' | 'list'>('map');
   const [query, setQuery] = useState('');
   const visible = useMemo(
@@ -111,6 +124,7 @@ export default function ExploreScreen() {
       {!expanded && <MapListToggle value={view} onChange={setView} />}
       {view === 'map' ? (
         <DisplayMap
+          topInset={insets.top}
           expanded={expanded}
           places={visible}
           onToggle={() => {
