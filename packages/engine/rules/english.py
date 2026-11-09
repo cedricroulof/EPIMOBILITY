@@ -3,7 +3,8 @@ avec interpolation linéaire à l'intérieur de la bande. Un TOEIC 945 et un IEL
 valent 80 points : équitable entre candidats, ce que ne donne pas une normalisation sur l'échelle brute.
 
 Sources : ETS, « Mapping the TOEIC Listening and Reading Test Scores to the CEFR » ;
-IELTS, « IELTS and the CEFR » (ielts.org). Le TOEIC L&R n'atteste pas le C2 : son maximum vaut 100 points mais reste étiqueté C1.
+IELTS, « IELTS and the CEFR » (ielts.org).
+Le TOEIC L&R n'atteste pas le C2 : son maximum vaut 100 points mais reste étiqueté C1.
 """
 
 CEFR = ["A1", "A2", "B1", "B2", "C1", "C2"]

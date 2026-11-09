@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Banc d'essai du moteur : scénarios × algorithmes, invariants, stabilité, rejeu, montée en charge.
 
-    pnpm bench                                                   # rapport écrit dans docs/technical/benchmark-results.md
+    pnpm bench                                                   # rapport dans docs/technical/benchmark-results.md
     uv run python packages/engine/benchmark/run.py --out /tmp/r.md  # autre destination
 
 Code de sortie 1 si une vérification de justesse échoue.
@@ -51,7 +51,8 @@ def main(out_path):
     md += [
         "## 1. Comparatif par scénario (1 000 étudiants × 100 universités, seed 42)",
         "",
-        "| Scénario | Algorithme | 1er vœu | Non affectés | Rang moyen | Paires bloquantes | Taux de remplissage | Préparation | Affectation | Détection paires bloquantes |",
+        "| Scénario | Algorithme | 1er vœu | Non affectés | Rang moyen | Paires bloquantes | Taux de remplissage "
+        "| Préparation | Affectation | Détection paires bloquantes |",
         "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     summaries = {}
@@ -81,7 +82,8 @@ def main(out_path):
             summaries[(sc, algo)] = summ
             md.append(
                 f"| {sc} | {algo} | {summ['pct_first']} % | {summ['pct_unassigned']} % | {summ['mean_rank']} | "
-                f"{summ['blocking_pairs']} | {summ['fill_rate']} % | {t_prep:.1f} ms | {t_match:.1f} ms | {t_stab:.1f} ms |"
+                f"{summ['blocking_pairs']} | {summ['fill_rate']} % | "
+                f"{t_prep:.1f} ms | {t_match:.1f} ms | {t_stab:.1f} ms |"
             )
             check(
                 f"{sc}/{algo} : invariants (vœux, éligibilité, capacités)",
@@ -111,7 +113,8 @@ def main(out_path):
     md += [
         "",
         "Lecture : Boston maximise les premiers vœux mais crée des paires bloquantes (un étudiant et une université "
-        "qui se préféreraient mutuellement à leur affectation). Gale-Shapley n'en crée jamais, au prix de quelques premiers vœux.",
+        "qui se préféreraient mutuellement à leur affectation). "
+        "Gale-Shapley n'en crée jamais, au prix de quelques premiers vœux.",
         "",
     ]
     check(
@@ -119,7 +122,8 @@ def main(out_path):
         any(summaries[(sc, "boston")]["blocking_pairs"] > 0 for sc in generator.SCENARIOS),
     )
     check(
-        "Pondérations par université (overrides) : Gale-Shapley reste stable et le classement diffère entre universités",
+        "Pondérations par université (overrides) : Gale-Shapley reste stable "
+        "et le classement diffère entre universités",
         summaries[("nominal + overrides", "gale_shapley")]["blocking_pairs"] == 0
         and summaries[("nominal + overrides", "gale_shapley")]["pct_first"]
         != summaries[("nominal", "gale_shapley")]["pct_first"],
@@ -204,7 +208,8 @@ def main(out_path):
     r_c, p_c = run(unis, st3, cfg3, "gale_shapley")
     moved3 = sum(r_a.assignment[s] != r_c.assignment[s] for s in r_a.assignment)
     check(
-        "Nouveau critère sans code : bonus « projet perso » + malus « absences » ajoutés par config seule, affectation modifiée, toujours stable",
+        "Nouveau critère sans code : bonus « projet perso » + malus « absences » ajoutés par config seule, "
+        "affectation modifiée, toujours stable",
         moved3 > 0 and not metrics.blocking_pairs(r_c, p_c),
         f"{moved3} étudiants déplacés",
     )
@@ -223,12 +228,14 @@ def main(out_path):
             university_keys=set(),
         )
         check(
-            "Validation : une configuration invalide est rejetée avec toutes ses erreurs (types, opérateurs, clés inconnues, niveau CEFR)",
+            "Validation : une configuration invalide est rejetée avec toutes ses erreurs "
+            "(types, opérateurs, clés inconnues, niveau CEFR)",
             False,
         )
     except ValueError as e:
         check(
-            "Validation : une configuration invalide est rejetée avec toutes ses erreurs (types, opérateurs, clés inconnues, niveau CEFR)",
+            "Validation : une configuration invalide est rejetée avec toutes ses erreurs "
+            "(types, opérateurs, clés inconnues, niveau CEFR)",
             str(e).count(";") >= 5,
             f"{str(e).count(';') + 1} erreurs listées",
         )
@@ -256,9 +263,10 @@ def main(out_path):
             res, t_match = med(lambda: algorithms.ALGORITHMS[algo](p), repeat=1 if n_s > 1000 else REPEAT)
             bp, t_stab = med(lambda: metrics.blocking_pairs(res, p), repeat=1)
             md.append(
-                f"| {n_s:,} | {n_u:,} | {algo} | {t_prep:.0f} ms | {t_match:.0f} ms | {t_stab:.0f} ms | {t_prep + t_match + t_stab:.0f} ms |".replace(
-                    ",", " "
-                )
+                (
+                    f"| {n_s:,} | {n_u:,} | {algo} | {t_prep:.0f} ms | {t_match:.0f} ms | {t_stab:.0f} ms "
+                    f"| {t_prep + t_match + t_stab:.0f} ms |"
+                ).replace(",", " ")
             )
             if algo == "gale_shapley":
                 check(f"Échelle {n_s}×{n_u} : Gale-Shapley reste stable", not bp)
@@ -273,7 +281,9 @@ def main(out_path):
         "## Environnement",
         "",
         f"- Python {platform.python_version()}, {platform.machine()}, {platform.system()} {platform.release()}",
-        f"- Temps : médiane de {REPEAT} exécutions (1 seule exécution au-delà de 1 000 étudiants), `time.perf_counter` ; les temps varient d'une machine et d'une exécution à l'autre, seules les vérifications sont comparables entre deux rapports",
+        f"- Temps : médiane de {REPEAT} exécutions (1 seule exécution au-delà de 1 000 étudiants), "
+        "`time.perf_counter` ; les temps varient d'une machine et d'une exécution à l'autre, "
+        "seules les vérifications sont comparables entre deux rapports",
         f"- Généré par `pnpm bench` le {time.strftime('%Y-%m-%d %H:%M')}",
         "",
     ]

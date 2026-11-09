@@ -2,7 +2,8 @@
 
 score(s, u)     = Σ poids_c × pct_c + Σ bonus,   pct_c = (valeur − min) / (max − min) × 100, borné à [0, 100]
                   `overrides[u]` peut remplacer `criteria` et/ou `bonuses` pour une université donnée
-éligible(s, u)  ⇔ tous les seuils éliminatoires sont satisfaits (seuil = constante `value` ou attribut `ref` de l'université)
+éligible(s, u)  ⇔ tous les seuils éliminatoires sont satisfaits
+                  (seuil = constante `value` ou attribut `ref` de l'université)
 préférence de u = score décroissant, puis `tie_break`, puis id étudiant ⇒ ordre total strict ⇒ résultat déterministe
 
 Ajouter un critère = une entrée dans `criteria` / `bonuses` / `eliminatory` / `tie_break` et l'attribut correspondant
@@ -75,7 +76,8 @@ def _const(key, v):
 
 
 def validate(config, student_keys=None, university_keys=None):
-    """Lève ValueError listant TOUTES les erreurs. Avec `student_keys` / `university_keys` (attributs réellement présents
+    """Lève ValueError listant TOUTES les erreurs.
+    Avec `student_keys` / `university_keys` (attributs réellement présents
     dans les données), vérifie aussi que chaque clé existe : une faute de frappe est refusée avant le run."""
     errors = []
     known_s = STUDENT_KEYS | set(student_keys or ()) if student_keys is not None else None
@@ -86,7 +88,8 @@ def validate(config, student_keys=None, university_keys=None):
             errors.append(f"{where} : 'key' manquant")
         elif known_s is not None and key not in known_s:
             errors.append(
-                f"{where} : clé {key!r} inconnue (natives : {sorted(STUDENT_KEYS)}, attributs : {sorted(known_s - STUDENT_KEYS)})"
+                f"{where} : clé {key!r} inconnue "
+                f"(natives : {sorted(STUDENT_KEYS)}, attributs : {sorted(known_s - STUDENT_KEYS)})"
             )
 
     def check_criteria(where, items):

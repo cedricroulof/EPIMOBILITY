@@ -1,4 +1,5 @@
-"""Tests unitaires du moteur : règles, algorithmes, vérification automatique de stabilité, rejeu, empreintes de référence."""
+"""Tests unitaires du moteur : règles, algorithmes, vérification automatique de stabilité,
+rejeu, empreintes de référence."""
 
 import copy
 import random

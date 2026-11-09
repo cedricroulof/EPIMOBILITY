@@ -16,12 +16,12 @@ PASSWORD = "demo1234"  # jeu de test uniquement
 def client():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     db.Base.metadata.create_all(engine)
-    Session = sessionmaker(engine, expire_on_commit=False)
-    with Session() as s:
+    session_factory = sessionmaker(engine, expire_on_commit=False)
+    with session_factory() as s:
         services.seed(s, n_students=60, n_unis=12, password=PASSWORD)
 
     def override():
-        with Session() as s:
+        with session_factory() as s:
             yield s
 
     app.dependency_overrides[db.get_db] = override

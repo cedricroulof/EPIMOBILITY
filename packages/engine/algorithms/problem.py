@@ -1,4 +1,5 @@
-"""Prétraitement commun aux algorithmes (`Problem`) et forme de leur résultat (`Result`) : comparaison à conditions égales."""
+"""Prétraitement commun aux algorithmes (`Problem`) et forme de leur résultat (`Result`) :
+comparaison à conditions égales."""
 
 import hashlib
 import json
@@ -9,8 +10,10 @@ from .. import rules
 
 
 class Problem:
-    """Pré-calcul partagé : score de chaque (étudiant, vœu), éligibilité, et rang de chaque candidat dans chaque université.
-    Valide la configuration CONTRE les données (clés réellement présentes) et les entrées (vœux distincts, universités connues)."""
+    """Pré-calcul partagé : score de chaque (étudiant, vœu), éligibilité, et rang de chaque candidat
+    dans chaque université.
+    Valide la configuration CONTRE les données (clés réellement présentes) et les entrées
+    (vœux distincts, universités connues)."""
 
     def __init__(self, universities, students, config):
         s_keys = {k for s in students for k in s.attributes}

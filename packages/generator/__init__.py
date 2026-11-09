@@ -138,7 +138,8 @@ def _wishes(rng, student, by_id, ids, cum_weights, k, dream=0.15):
 
 def draw_lottery(students, seed):
     """Numéro de tirage au sort par étudiant (départage ultime, config `tie_break` clé `lottery`).
-    Tiré dans l'ordre des ids ⇒ indépendant de l'ordre des lignes ; à faire AU SNAPSHOT, avec `run.seed`, pour que le rejeu
+    Tiré dans l'ordre des ids ⇒ indépendant de l'ordre des lignes ; à faire AU SNAPSHOT, avec `run.seed`,
+    pour que le rejeu
     relise les mêmes numéros. Ne réécrit pas un numéro déjà présent."""
     rng = random.Random(seed)
     for s in sorted(students, key=lambda s: s.id):

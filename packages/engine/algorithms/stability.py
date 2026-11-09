@@ -1,5 +1,6 @@
 """Vérification automatique de stabilité et invariants. Ne lit QUE l'affectation finale et le `Problem` :
-indépendante des algorithmes, donc apte à les juger (un vérificateur qui partagerait leur code partagerait leurs bugs)."""
+indépendante des algorithmes, donc apte à les juger (un vérificateur qui partagerait leur code
+partagerait leurs bugs)."""
 
 from collections import defaultdict
 

@@ -25,7 +25,8 @@ def summarize(result, p):
 
 
 def explain(student, result, p):
-    """Pour chaque vœu : pourquoi obtenu / refusé / inéligible / non examiné. Répond à « pourquoi ce vœu et pas le précédent ? »."""
+    """Pour chaque vœu : pourquoi obtenu / refusé / inéligible / non examiné.
+    Répond à « pourquoi ce vœu et pas le précédent ? »."""
     a = result.assignment[student.id]
     a_rank = student.wishes.index(a) if a is not None else None
     out = []

@@ -40,8 +40,8 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
-ignore = ["E501"]  # le formateur gère la longueur du code ; restent quelques commentaires et chaînes longs
+# E et W : pycodestyle (PEP 8) ; N : nommage PEP 8 ; line-length : limite d'équipe, plus large que les 79 de PEP 8.
+select = ["E", "W", "F", "I", "N", "B", "UP"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app", "engine", "generator"]
