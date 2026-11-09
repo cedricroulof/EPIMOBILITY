@@ -1,0 +1,10 @@
+{
+  "name": "epi-mobility",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'No root workspace yet: run this inside apps/web or apps/mobile.' && exit 1",
+    "build": "echo 'No root workspace yet: run this inside apps/web or apps/mobile.' && exit 1",
+    "lint": "echo 'No root workspace yet: run this inside apps/web or apps/mobile.' && exit 1",
+    "test": "echo 'No root workspace yet: run this inside apps/web or apps/mobile.' && exit 1"
+  }
+}
