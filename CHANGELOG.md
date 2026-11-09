@@ -16,3 +16,5 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions: [sem
   versioned configurations, runs, publication, explained result, replay, what-if comparison.
 - Unit, functional and end-to-end tests; CI (`ci.yml`) with Docker build and PostgreSQL.
 - Docker Compose: database and API in one command, demo dataset loaded at startup.
+- CI: dependency licence check and secret scan across the full history; Dependabot.
+- Ruff: PEP 8 rules completed (`W`, `N`) and line length checked at 120 characters.

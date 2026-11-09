@@ -268,7 +268,7 @@ Comparison at the required size (nominal): Gale-Shapley 62.9% 1st wishes, 17.8% 
 - data: `data/universities.json` validated by a JSON schema (100 entries, 6 continents, GPS, each photo with `author`/`license`/`alt`, `cost_of_living.source`, non-empty `sources[]`);
 - the benchmark (`pnpm bench`) is an assertion suite and runs in CI on every PR, report as an artifact (the report is not committed: timings vary, only the checks are comparable).
 
-**CI** (GitHub Actions, every PR): `ruff check` + `ruff format --check`, `pytest`, benchmark, `docker build`. Required checks on `main`.
+**CI** (GitHub Actions, every PR): Conventional Commits, `ruff check` + `ruff format --check`, dependency licences (`pip-licenses`), secrets across the full history (`gitleaks`), `pytest`, benchmark, `docker build`. Required checks on `main`.
 
 **CD**: merge to `main` → Fly.io deployment; `alembic upgrade head` at startup; demo dataset seeded if the database is empty. The SPA is built in the image and served by the API under `/` (the API under `/api`). Mobile: APK / simulator build published as an artifact by the pipeline of the mobile repository (or of the same repository, open question §14).
 

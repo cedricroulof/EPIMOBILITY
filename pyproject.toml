@@ -3,6 +3,7 @@
 name = "epi-mobility"
 version = "0.1.0"
 description = "API and matching engine of the international mobility platform (educational project: fictional partnerships)"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "argon2-cffi",
@@ -28,13 +29,19 @@ dev-mode-dirs = ["packages", "apps/api"]
 testpaths = ["packages", "apps"]
 addopts = "-ra --import-mode=importlib"
 
+# "Dependency licences" CI job: a shipped dependency whose licence is not listed here fails the PR.
+# LGPL-3.0-only: psycopg, used as an unmodified library, compatible with an MIT project.
+[tool.pip-licenses]
+from = "mixed"
+allow-only = "MIT;MIT License;MIT-0;BSD-2-Clause;BSD-3-Clause;Apache-2.0;PSF-2.0;LGPL-3.0-only"
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP"]
-ignore = ["E501"]  # the formatter handles code length; a few long comments and strings remain
+# E and W: pycodestyle (PEP 8); N: PEP 8 naming; line-length: team limit, wider than PEP 8's 79.
+select = ["E", "W", "F", "I", "N", "B", "UP"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app", "engine", "generator"]

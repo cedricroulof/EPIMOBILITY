@@ -11,7 +11,7 @@ Each level covers what the level below **cannot see**, without repeating what it
 | Functional | `apps/api/tests/functional` | 15 | ≈ 3 s | Every business and security rule exposed by the API |
 | End-to-end | `apps/api/tests/e2e` | 1 scenario | ≈ 5 s (≈ 1 min in CI with the Docker build) | The running platform, driven over HTTP the way the web and mobile clients will do it |
 | Performance | `packages/engine/benchmark/run.py` | 68 checks | ≈ 6 s | Computation time per algorithm, from 1,000 to 50,000 students, and quantified comparison |
-| Conventions | `.pre-commit-config.yaml` | – | – | Commit messages, lint, format, no private keys |
+| Conventions | `.pre-commit-config.yaml` | – | – | Commit messages, lint, format, secrets |
 
 ## Unit: the engine, in isolation
 
@@ -85,9 +85,10 @@ another, only the checks are comparable. Protocol: [`benchmark-protocol.md`](ben
 
 ## Conventions
 
-The pre-commit hooks (format, lint, private keys, commit message) run locally on every commit, and CI runs them
+The pre-commit hooks (format, lint, secrets, commit message) run locally on every commit, and CI runs them
 again on the whole repository: a hook bypassed locally (`--no-verify`) is caught in the PR. Details in
-[`CONTRIBUTING.md`](../../CONTRIBUTING.md).
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md). CI also checks the licences of shipped dependencies (`pip-licenses`) and
+searches the full history for secrets (`gitleaks`).
 
 ## Running only a part
 

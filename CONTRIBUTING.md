@@ -20,7 +20,7 @@ On every `git commit`, on the changed files:
 | `trailing-whitespace`, `end-of-file-fixer` | clean files, diffs without noise |
 | `check-yaml`, `check-toml`, `check-merge-conflict` | no broken configuration or forgotten conflict marker |
 | `check-added-large-files` | no heavy binaries in the history |
-| `detect-private-key` | no secrets in the repository (brief requirement) |
+| `detect-private-key`, `gitleaks` | no secrets in the repository (brief requirement); CI also scans the full history |
 | `ruff-check`, `ruff-format` | Python lint and format, fixed automatically |
 | `conventional-pre-commit` (`commit-msg` stage) | message conforming to Conventional Commits |
 
@@ -77,7 +77,13 @@ commit of the PR **and on the PR title**, since it becomes the message of the sq
 ### Required checks (to tick in *Settings → Branches → main*)
 
 All jobs of `.github/workflows/ci.yml`: `Conventional Commits`, `Lint (pre-commit hooks)`,
-`Unit + functional tests`, `Build + end-to-end (Docker, PostgreSQL)`, `Engine benchmark (68 checks)`.
+`Dependency licences`, `Secrets (full history)`, `Unit + functional tests`, `Build + end-to-end (Docker, PostgreSQL)`,
+`Engine benchmark (68 checks)`.
+
+### Adding a Python dependency
+
+CI rejects any shipped dependency whose licence is not allowed. If the new licence suits an MIT project, add it to
+`allow-only` in `[tool.pip-licenses]` (`pyproject.toml`) and explain the choice in the PR.
 
 ## Adding an assignment criterion
 
