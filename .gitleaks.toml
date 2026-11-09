@@ -1,0 +1,7 @@
+# Règles par défaut de gitleaks, moins les faux positifs connus.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Sommes de contrôle CocoaPods (SPEC CHECKSUMS) : ce ne sont pas des secrets"
+paths = ['''(^|/)Podfile\.lock$''']
