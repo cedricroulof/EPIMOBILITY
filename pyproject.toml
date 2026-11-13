@@ -10,6 +10,8 @@ dependencies = [
     "psycopg[binary]",
     "sqlalchemy>=2",
     "uvicorn",
+    "pandas>=3.1.0",
+    "requests>=2.34.2",
 ]
 
 [dependency-groups]
