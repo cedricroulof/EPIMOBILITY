@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
+from collections import deque
+from engine.models.Student import Student
+from engine.models.University import University
 
 class StudentPool:
 
     def __init__(self, pool: [Student]):
         self.pool = pool
-        self.engaged_pool = []
         self.student_reject_propposal = None
 
     def add(self, student: Student):
@@ -27,24 +29,41 @@ class StudentPool:
             if uni_name == u.name:
                 return u
 
-
     def stable_marriage(self, uni_pool: [University], visual=False):
         cycle = 1
-        while not self.all_student_engaged():
-            if visual:
-                print(f" ================= cycle {cycle} ================= ")
-            for s in self.pool:
-                if visual:
-                    print(f"+++ student {s.name} +++")
-                if s.is_engaged():
-                    continue
-                target_uni = self.get_target_uni(s, uni_pool)
-                s_rejected = s.engage(target_uni)
-                if visual:
-                    print(f"{s.name} student choice: {s.choice}")
-                if s_rejected is not None:
-                    self.unengage_the_student(s_rejected)
+        unis = {u.name:u for u in uni_pool}
+        students = {s.name:s for s in self.pool}
+
+        for s in self.pool:
+            s.reset()
+        for u in uni_pool:
+            u.reset()
+
+        free = deque(self.pool)
+        while free:
+            s = free.popleft()
+            if not s.has_proposal_left():
+                cycle += 1
+                continue
+            target_name = s.current_target()
+            uni = unis.get(target_name)
+
+            if uni is None:
+                s.proposal_index += 1
+                free.append(s)
+                cycle += 1
+                continue
+            evicted = s.engage(uni)
+
+            if s.is_engaged():
+                if evicted is not None:
+                    other = students[evicted]
+                    other.unengage()
+                    free.append(other)
+            else:
+                free.append(s)
             cycle += 1
+
 
     def __str__(self):
         string = ""

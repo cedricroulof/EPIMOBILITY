@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from engine.models.University import University
 
 class Student:
 
@@ -9,16 +10,25 @@ class Student:
         self.proposal_index = 0
 
     def engage(self, uni: University):
-        if uni.prefers(self.name):
+        accepted, evicted = uni.propose(self.name)
+        if accepted:
             self.choice = uni.name
-            student_rejected = uni.choice
-            uni.choice = self.name
-            return student_rejected
+            return evicted
         self.proposal_index += 1
-        return
+
+    def current_target(self):
+        return self.preferences[self.proposal_index]
+
+    def has_proposal_left(self) -> bool:
+        return self.proposal_index < len(self.preferences)
 
     def is_engaged(self):
         return self.choice is not None
 
     def unengage(self):
         self.choice = None
+        self.proposal_index += 1
+
+    def reset(self):
+        self.choice = None
+        self.proposal_index = 0
